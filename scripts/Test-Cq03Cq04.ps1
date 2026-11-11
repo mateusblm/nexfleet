@@ -77,8 +77,9 @@ try {
     $env:NEXFLEET_INTEGRATION_DB_USER = $databaseUser
     $env:NEXFLEET_INTEGRATION_DB_PASSWORD = $databasePassword
 
-    $isWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $env:OS -eq 'Windows_NT'
-    $mavenWrapper = if ($isWindows) {
+    # $IsWindows é variável automática somente leitura no PowerShell 7 (Linux/CI).
+    $hostWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $env:OS -eq 'Windows_NT'
+    $mavenWrapper = if ($hostWindows) {
         Join-Path $projectRoot 'services/mvnw.cmd'
     } else {
         Join-Path $projectRoot 'services/mvnw'

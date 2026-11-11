@@ -109,8 +109,9 @@ try {
     $env:NEXFLEET_CQ05_MOTORISTA_ID = [guid]::NewGuid().ToString()
     $env:NEXFLEET_CQ05_AUTOR_ID = [guid]::NewGuid().ToString()
 
-    $isWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $env:OS -eq 'Windows_NT'
-    $script:mavenWrapper = if ($isWindows) {
+    # $IsWindows é variável automática somente leitura no PowerShell 7 (Linux/CI).
+    $hostWindows = $PSVersionTable.PSEdition -eq 'Desktop' -or $env:OS -eq 'Windows_NT'
+    $script:mavenWrapper = if ($hostWindows) {
         Join-Path $projectRoot 'services/mvnw.cmd'
     } else {
         Join-Path $projectRoot 'services/mvnw'
