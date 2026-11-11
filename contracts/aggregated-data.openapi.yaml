@@ -1,0 +1,205 @@
+openapi: 3.1.0
+info:
+  title: NexFleet — Visão consolidada (aggregated-data)
+  version: 1.0.0
+  description: >-
+    Endpoint do BFF que compõe, em uma chamada, Frota (veículos, motoristas e vínculos ativos),
+    Operações (últimos abastecimentos e manutenções) e a Azure Function de eficiência
+    (POST /api/calcular-eficiencia). Frota e Operações são consultadas em paralelo com tempo
+    limite por fonte (5 s, configurável em AGREGADO_TIMEOUT). A Function recebe o histórico de
+    Operações agrupado por veículo; por isso, se Operações falhar, a Function não é chamada e
+    fontes.funcao vem "falhou". Uma fonte que falha ou estoura o tempo limite devolve a seção
+    vazia e "falhou" em fontes; a resposta só é 502 quando as três falham. Cada listagem de
+    origem é lida até 1.000 itens.
+paths:
+  /api/v1/aggregated-data:
+    get:
+      operationId: consultarDadosAgregados
+      summary: Compõe Frota, Operações e eficiência da frota em um único JSON
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Ao menos uma fonte respondeu; fontes indica quais falharam
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DadosAgregados"
+        "401":
+          description: Token ausente ou inválido
+        "502":
+          description: Frota, Operações e a Function falharam
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+  /aggregated-data:
+    get:
+      operationId: consultarDadosAgregadosSemVersao
+      summary: Mesmo recurso de /api/v1/aggregated-data, no caminho literal do enunciado
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Ao menos uma fonte respondeu; fontes indica quais falharam
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DadosAgregados"
+        "401":
+          description: Token ausente ou inválido
+        "502":
+          description: Frota, Operações e a Function falharam
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Erro"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    DadosAgregados:
+      type: object
+      required: [frota, operacoes, eficiencia, fontes, geradoEm]
+      properties:
+        frota: { $ref: "#/components/schemas/Frota" }
+        operacoes: { $ref: "#/components/schemas/Operacoes" }
+        eficiencia: { $ref: "#/components/schemas/Eficiencia" }
+        fontes: { $ref: "#/components/schemas/Fontes" }
+        geradoEm: { type: string, format: date-time }
+    Fontes:
+      type: object
+      required: [frota, operacoes, funcao]
+      properties:
+        frota: { $ref: "#/components/schemas/SituacaoFonte" }
+        operacoes: { $ref: "#/components/schemas/SituacaoFonte" }
+        funcao: { $ref: "#/components/schemas/SituacaoFonte" }
+    SituacaoFonte:
+      type: string
+      enum: [ok, falhou]
+    Frota:
+      type: object
+      description: Vazia (listas sem itens) quando fontes.frota = falhou.
+      required: [veiculos, motoristas, vinculosAtivos]
+      properties:
+        veiculos:
+          type: array
+          items: { $ref: "#/components/schemas/Veiculo" }
+        motoristas:
+          type: array
+          description: Resumo sem CPF, CNH ou telefone.
+          items: { $ref: "#/components/schemas/Motorista" }
+        vinculosAtivos:
+          type: array
+          items: { $ref: "#/components/schemas/VinculoAtivo" }
+    Veiculo:
+      type: object
+      required: [id, placa, marca, modelo, ano, tipo, quilometragem, status]
+      properties:
+        id: { type: string, format: uuid }
+        placa: { type: string }
+        marca: { type: string }
+        modelo: { type: string }
+        ano: { type: integer }
+        tipo: { type: string }
+        quilometragem: { type: integer, format: int64, minimum: 0 }
+        status: { type: string, enum: [DISPONIVEL, EM_USO, EM_MANUTENCAO, INATIVO] }
+    Motorista:
+      type: object
+      required: [id, nome, categoria, validadeCnh, status]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string }
+        categoria: { type: string }
+        validadeCnh: { type: string, format: date }
+        status: { type: string }
+    VinculoAtivo:
+      type: object
+      required: [id, veiculoId, veiculoPlaca, motoristaId, motoristaNome, inicio]
+      properties:
+        id: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        veiculoPlaca: { type: string }
+        motoristaId: { type: string, format: uuid }
+        motoristaNome: { type: string }
+        inicio: { type: string, format: date-time }
+    Operacoes:
+      type: object
+      description: Até 10 registros mais recentes de cada tipo; vazia quando fontes.operacoes = falhou.
+      required: [abastecimentos, manutencoes]
+      properties:
+        abastecimentos:
+          type: array
+          maxItems: 10
+          items: { $ref: "#/components/schemas/Abastecimento" }
+        manutencoes:
+          type: array
+          maxItems: 10
+          items: { $ref: "#/components/schemas/Manutencao" }
+    Abastecimento:
+      type: object
+      required: [id, veiculoId, realizadoEm, combustivel, litros, valorTotal, quilometragem]
+      properties:
+        id: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        realizadoEm: { type: string, format: date-time }
+        combustivel: { type: string }
+        litros: { type: number }
+        valorTotal: { type: number }
+        quilometragem: { type: integer, format: int64 }
+    Manutencao:
+      type: object
+      required: [id, veiculoId, tipo, realizadaEm, quilometragem, valor]
+      properties:
+        id: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        tipo: { type: string }
+        realizadaEm: { type: string, format: date }
+        quilometragem: { type: integer, format: int64 }
+        valor: { type: number }
+        proximaManutencao: { type: [string, "null"], format: date }
+    Eficiencia:
+      type: object
+      description: >-
+        Resposta da Function calcular-eficiencia. Vazia (veiculos sem itens, frota nula) quando
+        fontes.funcao = falhou.
+      required: [veiculos, frota]
+      properties:
+        veiculos:
+          type: array
+          items: { $ref: "#/components/schemas/EficienciaVeiculo" }
+        frota:
+          oneOf:
+            - $ref: "#/components/schemas/EficienciaFrota"
+            - type: "null"
+    EficienciaVeiculo:
+      type: object
+      required: [veiculoId, gastoAbastecimento, gastoManutencao, gastoTotal, distanciaKm]
+      properties:
+        veiculoId: { type: string, format: uuid }
+        placa: { type: [string, "null"], description: Nula se Frota não respondeu }
+        consumoMedioKmL: { type: [number, "null"] }
+        custoPorKm: { type: [number, "null"] }
+        gastoAbastecimento: { type: number }
+        gastoManutencao: { type: number }
+        gastoTotal: { type: number }
+        distanciaKm: { type: integer, format: int64, minimum: 0 }
+    EficienciaFrota:
+      type: object
+      required: [gastoTotal, distanciaKm]
+      properties:
+        consumoMedioKmL: { type: [number, "null"] }
+        custoPorKm: { type: [number, "null"] }
+        gastoTotal: { type: number }
+        distanciaKm: { type: integer, format: int64, minimum: 0 }
+    Erro:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
