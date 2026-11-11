@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): dumps dos cinco PostgreSQL pelo compose.sprint0.yaml.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: sem equivalente; a prova CQ10 e da v0.30.0 (ADR 0024).
+
 [CmdletBinding()]
 param(
     [string]$OutputDirectory

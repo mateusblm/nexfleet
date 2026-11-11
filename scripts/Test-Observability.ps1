@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): espera o Prometheus em 127.0.0.1:9090, que nao faz parte do compose.yaml da v1.0.0.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: sem equivalente no compose.yaml.
+
 [CmdletBinding()]
 param()
 

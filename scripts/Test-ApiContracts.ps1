@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): le as credenciais de .env.sprint0.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: contratos conferidos por ./mvnw -B -ntp -f quality/pom.xml verify e fluxo publico por scripts/smoke-publico.sh.
+
 [CmdletBinding()]
 param(
     [string]$BaseUrl = 'http://127.0.0.1:8080'

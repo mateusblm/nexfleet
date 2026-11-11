@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): encadeia Test-ApiContracts, Test-Sprint2Eda e Test-Sprint3Serverless, que sao legados.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: scripts/smoke-publico.sh (nuvem) e scripts/seed-demo.sh (local).
+
 [CmdletBinding()]
 param(
     [string]$BaseUrl = 'http://127.0.0.1:8080',

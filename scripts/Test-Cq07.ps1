@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): roda o JAR de Frota com PostgreSQL temporario a partir de services/frota.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: testes de readiness com MongoDB em nexfleet-frota (./mvnw -B -ntp verify).
+
 param(
     [string]$PostgresImage = 'postgres:18-alpine',
     [string]$JavaRuntimeImage = 'eclipse-temurin:21-jre-jammy'

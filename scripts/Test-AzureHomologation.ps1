@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): usa a conta criada pelo antigo Publish-AzureDatabaseMigration.ps1 (removido) e o .clixml do bootstrap-admin.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: scripts/smoke-publico.sh.
+
 [CmdletBinding()]
 param(
     [string]$ProfilePath,

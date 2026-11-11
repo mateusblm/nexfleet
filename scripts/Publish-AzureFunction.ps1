@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): espera functions/notificar-abastecimento e services/mvnw.cmd e empacota so o gatilho Service Bus, sem CalcularEficiencia.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: docs/GUIA-INFRAESTRUTURA-AZURE-BICEP.md, secao 8.4 (OneDeploy em bash).
+
 [CmdletBinding()]
 param(
     [string]$ProfilePath,

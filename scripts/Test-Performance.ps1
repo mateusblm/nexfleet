@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): le as credenciais de .env.sprint0 (CQ09).
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: sem equivalente; a prova CQ09 e da v0.30.0 (ADR 0023).
+
 [CmdletBinding()]
 param(
     [string]$BaseUrl = 'http://127.0.0.1:8080',

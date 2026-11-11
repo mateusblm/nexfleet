@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): orquestra dois PostgreSQL temporarios a partir de services/.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: Cq05HistoricoVeiculoIT em nexfleet-operacoes (./mvnw -B -ntp verify).
+
 param(
     [string]$PostgresImage = 'postgres:18-alpine'
 )

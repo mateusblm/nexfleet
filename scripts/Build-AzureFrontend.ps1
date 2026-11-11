@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): compila frontend/ e microfrontends/ dentro deste repositorio; o codigo agora esta em nexfleet-frontend.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: docs/GUIA-INFRAESTRUTURA-AZURE-BICEP.md, secao 8.6 (mesmo pacote, em bash).
+
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]

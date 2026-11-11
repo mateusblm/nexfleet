@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): roda JdbcAbastecimentosIT em PostgreSQL efemero a partir de services/operacoes.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: JdbcAbastecimentosIT em nexfleet-operacoes (./mvnw -B -ntp verify, SQL Server em Testcontainers).
+
 param(
     [string]$PostgresImage = 'postgres:18-alpine'
 )

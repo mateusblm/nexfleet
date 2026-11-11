@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): instala ferramentas portateis e dependencias nas pastas do monorepo (services/, frontend/, functions/).
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: pre-requisitos em docs/GUIA-EXECUCAO-LOCAL.md.
+
 [CmdletBinding()]
 param(
     [switch]$SkipRuntimeDownload,

@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): verifica filas RabbitMQ pelo compose.sprint0.yaml.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: integracao coberta pelos testes de nexfleet-operacoes/-indicadores e por scripts/smoke-publico.sh.
+
 [CmdletBinding()]
 param()
 

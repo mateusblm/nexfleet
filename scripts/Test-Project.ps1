@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): compila e testa as pastas do monorepo (services/, frontend/, microfrontends/, functions/).
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: ./mvnw -B -ntp verify em cada nexfleet-<svc>, npm ci && npm test && npm run build em nexfleet-frontend e o quality/ do guarda-chuva.
+
 param(
     [switch]$SkipInstall,
     [switch]$IncludeDatabaseIntegration

@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): cria .env.sprint0 para o Compose do monorepo.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: scripts/iniciar-local.sh (cria .env e a chave RSA).
+
 [CmdletBinding()]
 param()
 

@@ -1,3 +1,7 @@
+# LEGADO (v0.30.0): para compose.sprint0.yaml + compose.jwt-rsa.yaml.
+# Nao funciona com o layout da v1.0.0 (guarda-chuva + repositorios nexfleet-*, compose.yaml,
+# SQL Server e MongoDB) e fica apenas como historico. Na v1.0.0: docker compose down.
+
 [CmdletBinding()]
 param()
 
