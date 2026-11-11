@@ -5,7 +5,7 @@ Estado: aceita para a preparação; implantação ainda não autorizada
 
 ## Contexto
 
-A política `sys.regionrestriction` da assinatura Azure for Students recusou as regiões originalmente planejadas, `Brazil South` e `East US 2`. A consulta conectada mostrou cinco regiões permitidas: `Central US`, `Chile Central`, `Mexico Central`, `North Central US` e `Spain Central`. Entre elas, somente `Central US` oferece os 19 tipos necessários em uma única região.
+A política `sys.regionrestriction` da assinatura Azure recusou as regiões originalmente planejadas, `Brazil South` e `East US 2`. A consulta conectada mostrou cinco regiões permitidas: `Central US`, `Chile Central`, `Mexico Central`, `North Central US` e `Spain Central`. Entre elas, somente `Central US` oferece os 19 tipos necessários em uma única região.
 
 Depois da aprovação do usuário para escolher qualquer região compatível, o Azure CLI iniciou o `what-if`, mas a conexão longa foi repetidamente encerrada com `ConnectionResetError 10054`. Consultas curtas continuaram funcionando e nenhum grupo de recursos foi criado.
 

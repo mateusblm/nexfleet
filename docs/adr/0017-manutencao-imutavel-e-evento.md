@@ -1,5 +1,7 @@
 # ADR 0017 — Manutenção imutável e evento dedicado
 
+> Imutabilidade substituída pela ADR 0045 (v1.1.0): manutenções podem ser editadas e excluídas com eventos versionados. O evento dedicado continua válido.
+
 ## Contexto
 
 RF12 e RF13 exigem registrar os dados da manutenção e consultar o histórico por veículo. RB05 impede novas operações em veículo inativo e RB13 exige que a próxima manutenção, quando informada, seja posterior. Os requisitos não determinam mudança automática de status, edição ou cancelamento.

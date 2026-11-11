@@ -34,7 +34,7 @@ A faixa inferior presume que as três réplicas mínimas permanecem ociosas e qu
 - Private DNS, transferência de dados, impostos e variação cambial.
 - Réplicas adicionais acionadas pelo autoscaling.
 - Azure Communication Services Email.
-- Descontos, créditos ou benefícios da assinatura Azure for Students.
+- Descontos, créditos ou benefícios da assinatura Azure.
 
 Por isso, a faixa é uma referência de planejamento, não uma cotação nem um teto de cobrança. A própria Microsoft informa que os preços publicados são estimativas e podem variar conforme oferta, contrato, data e câmbio. Consulte a [API Azure Retail Prices](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices), a [calculadora de preços](https://learn.microsoft.com/azure/cost-management-billing/costs/pricing-calculator), a [cobrança de Container Apps](https://learn.microsoft.com/azure/container-apps/billing) e a [página de preços do PostgreSQL Flexible Server](https://azure.microsoft.com/pricing/details/postgresql/flexible-server/).
 

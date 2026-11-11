@@ -1,5 +1,12 @@
 # Histórico de entregas
 
+## v1.1.0 — 12/11/2026
+
+- **CRUD completo no Operações:** consultar por id, editar e excluir abastecimentos e manutenções (`GET/PUT/DELETE /api/v1/{abastecimentos|manutencoes}/{id}`), no Operações, BFF, Gateway e na tela de Operações (Editar com formulário preenchido e validação acessível; Excluir com confirmação). No abastecimento, só combustível, litros, valor e quilometragem são editáveis, com a quilometragem entre a do anterior e a do seguinte e o hodômetro recalculado (ADR 0045).
+- **Eventos versionados:** `AbastecimentoAtualizado.v1`, `AbastecimentoExcluido.v1`, `ManutencaoAtualizada.v1` e `ManutencaoExcluida.v1` pela outbox; o Indicadores aplica só versões mais novas e mantém a exclusão mesmo com eventos fora de ordem. Filtro do Service Bus ampliado.
+- **Camada de domínio** no Operações, Indicadores e BFF, garantida pelo ArchitectureTest.
+- Gateway passa a exigir token em todas as rotas de abastecimentos e manutenções; o BFF repassa as mensagens 403/404/422 do Operações.
+
 ## v1.0.0 — 11/11/2026
 
 - **Nove repositórios públicos** em `github.com/mateusblm`, criados por `git subtree split` do monorepo com o histórico preservado: guarda-chuva `nexfleet` e `nexfleet-{frontend,gateway,bff,identidade,frota,operacoes,indicadores,function}`. Cada um tem README, build próprio e CI; os de serviço publicam `mateusblm/nexfleet-<svc>` no Docker Hub em tag `v*` (ADR 0042).

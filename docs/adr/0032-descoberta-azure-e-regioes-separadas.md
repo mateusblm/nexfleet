@@ -30,4 +30,4 @@ O Azure CLI também havia sido instalado depois da abertura do processo do edito
 
 ## Evidência
 
-A descoberta conectada verificou 16 tipos na assinatura `Azure for Students`. `Brazil South` atende 15; Static Web Apps oferece `Central US`, `East Asia`, `East US 2`, `West Europe` e `West US 2`. Cinco provedores necessários estavam `NotRegistered`. O relatório confirmou zero recursos criados, zero provedores registrados e nenhuma troca de assinatura.
+A descoberta conectada verificou 16 tipos na assinatura Azure. `Brazil South` atende 15; Static Web Apps oferece `Central US`, `East Asia`, `East US 2`, `West Europe` e `West US 2`. Cinco provedores necessários estavam `NotRegistered`. O relatório confirmou zero recursos criados, zero provedores registrados e nenhuma troca de assinatura.

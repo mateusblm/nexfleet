@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita em 05/11/2026 para a primeira fatia da Sprint 2.
+Aceita em 05/11/2026 para a primeira fatia da Sprint 2. O §5 (registros imutáveis) foi substituído pela ADR 0045 na v1.1.0.
 
 ## Contexto
 

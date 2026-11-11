@@ -149,7 +149,7 @@ $report = [ordered]@{
         cpuPerReplica = $cpuPerReplica
         memoryGiBPerReplica = $memoryPerReplicaGiB
         containerAppsFreeGrantAssumedAvailable = $true
-        creditsOrStudentBenefitsApplied = $false
+        creditsOrBenefitsApplied = $false
     }
     monthlyEstimate = [ordered]@{
         sqlDatabaseFreeOffer = [decimal]0
@@ -168,7 +168,7 @@ $report = [ordered]@{
         'MongoDB Atlas M0 (gratuito, fora da Azure)',
         'replicas adicionais por autoscaling',
         'Azure Communication Services Email',
-        'descontos, creditos e beneficios Azure for Students'
+        'descontos, creditos e beneficios da assinatura'
     )
     safety = [ordered]@{
         azureAccountAccessed = $false

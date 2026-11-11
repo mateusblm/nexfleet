@@ -17,7 +17,7 @@ Ela não registra provedores, não cria grupo de recursos, não executa Bicep/Te
 
 ## 2. Estado atual desta máquina
 
-Em 08/11/2026, o Azure CLI foi instalado e a assinatura **Azure for Students** apareceu como `Enabled` e padrão. Depois de autorização explícita, API Management, Container Registry, PostgreSQL, Key Vault e Managed Identity foram registrados. Em 09/11/2026, `Microsoft.Network` também foi autorizado e registrado; a descoberta passou a confirmar 19/19 tipos. O primeiro `what-if` conectado revelou que a política recusa `Brazil South`. Em 10/11/2026, o usuário autorizou qualquer região compatível, `Central US` foi adotada e o `what-if` `ProviderNoRbac` concluiu com 63 mudanças previstas, sendo 62 criações, uma implantação lógica e zero exclusões. Um orçamento de R$ 100/mês foi configurado com alertas em 50% real, 80% real e 100% previsto. Até esse ponto, nenhum workload, grupo de recursos ou serviço pago havia sido implantado. Ainda em 10/11/2026, depois das autorizações de cobrança, cotas e e-mail, a homologação foi publicada (ver a seção 7.1 do [guia Bicep](GUIA-INFRAESTRUTURA-AZURE-BICEP.md) e a ADR 0037).
+Em 08/11/2026, o Azure CLI foi instalado e a assinatura Azure apareceu como `Enabled` e padrão. Depois de autorização explícita, API Management, Container Registry, PostgreSQL, Key Vault e Managed Identity foram registrados. Em 09/11/2026, `Microsoft.Network` também foi autorizado e registrado; a descoberta passou a confirmar 19/19 tipos. O primeiro `what-if` conectado revelou que a política recusa `Brazil South`. Em 10/11/2026, o usuário autorizou qualquer região compatível, `Central US` foi adotada e o `what-if` `ProviderNoRbac` concluiu com 63 mudanças previstas, sendo 62 criações, uma implantação lógica e zero exclusões. Um orçamento de R$ 100/mês foi configurado com alertas em 50% real, 80% real e 100% previsto. Até esse ponto, nenhum workload, grupo de recursos ou serviço pago havia sido implantado. Ainda em 10/11/2026, depois das autorizações de cobrança, cotas e e-mail, a homologação foi publicada (ver a seção 7.1 do [guia Bicep](GUIA-INFRAESTRUTURA-AZURE-BICEP.md) e a ADR 0037).
 
 ## Decisões registradas até a v0.29.0
 
@@ -210,7 +210,7 @@ Atualização de 10/11/2026: a autorização foi concedida ([ADR 0036](adr/0036-
 
 Alertas de orçamento avisam quando o custo alcança o limite configurado, mas não desligam os recursos. A Microsoft recomenda acompanhar custos e destinatários de alerta; consulte [Cost Management — alertas de gastos](https://learn.microsoft.com/azure/cost-management-billing/costs/cost-mgt-alerts-monitor-usage-spending).
 
-Em assinaturas pagas, confirme moeda, responsável pela cobrança, orçamento e impacto dos SKUs. No Azure for Students, o crédito é limitado e a assinatura pode ser desabilitada quando o saldo termina. Consulte [Azure for Students](https://learn.microsoft.com/azure/education-hub/about-azure-for-students) somente quando esse for o tipo da assinatura.
+Em assinaturas pagas, confirme moeda, responsável pela cobrança, orçamento e impacto dos SKUs. Em assinaturas baseadas em crédito, o saldo é limitado e a assinatura pode ser desabilitada quando ele termina.
 
 ## 11. Próxima barreira
 
