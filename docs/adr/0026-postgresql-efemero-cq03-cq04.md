@@ -1,6 +1,6 @@
 # ADR 0026 — PostgreSQL efêmero para CQ03 e CQ04
 
-- Status: aceita.
+- Status: **Substituída por ADR 0040**. Na v1.0.0, a prova transacional de CQ03/CQ04 roda contra SQL Server 2022 em Testcontainers (`JdbcAbastecimentosIT` de `nexfleet-operacoes`); `Test-Cq03Cq04.ps1` fica como legado da v0.30.0.
 - Data: 08/11/2026.
 - Escopo: Sprint 4, v0.21.0.
 

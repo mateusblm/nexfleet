@@ -1,7 +1,7 @@
 # ADR 0038 — exclusão definitiva de cadastros sem histórico
 
 Data: 11/11/2026
-Estado: aceita
+Estado: aceita. Na v1.0.0, a chave estrangeira de vínculo e a restauração point-in-time do PostgreSQL citadas nas consequências deixaram de existir (ADR 0039 e ADR 0044); a regra de exclusão continua valendo.
 
 ## Contexto
 

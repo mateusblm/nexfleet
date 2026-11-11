@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita em 05/11/2026 para a segunda fatia da Sprint 2.
+Aceita em 05/11/2026 para a segunda fatia da Sprint 2. O bloqueio `FOR UPDATE SKIP LOCKED` do PostgreSQL foi **Substituído por ADR 0040** (`WITH (INDEX(ix_outbox_pendente), UPDLOCK, READPAST, ROWLOCK)` no SQL Server); o restante da publicação continua valendo.
 
 ## Contexto
 

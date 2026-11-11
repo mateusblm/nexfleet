@@ -1,6 +1,7 @@
 # ADR 0033 — registro controlado, orçamento e e-mail Azure
 
 Data: 08/11/2026.
+Estado: aceita. O registro de `Microsoft.DBforPostgreSQL` e `Microsoft.ContainerRegistry` e a retenção de backup do PostgreSQL foram **Substituídos por ADR 0044** (sem PostgreSQL nem ACR na v1.0.0).
 
 ## Contexto
 

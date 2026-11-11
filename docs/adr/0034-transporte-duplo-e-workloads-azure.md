@@ -1,7 +1,7 @@
 # ADR 0034 — transporte duplo e workloads Azure
 
 Data: 09/11/2026  
-Estado: aceita para a preparação; publicação ainda não autorizada
+Estado: quanto a PostgreSQL privado, DNS privado e ACR, **Substituída por ADR 0042 e ADR 0044**; o transporte duplo RabbitMQ/Service Bus e as identidades gerenciadas continuam valendo
 
 ## Contexto
 

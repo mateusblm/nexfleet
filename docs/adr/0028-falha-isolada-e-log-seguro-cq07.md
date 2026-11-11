@@ -1,6 +1,6 @@
 # ADR 0028 — falha isolada e log seguro para CQ07
 
-- Status: aceita.
+- Status: **Substituída por ADR 0039** quanto ao banco: o readiness da Frota passou a depender do MongoDB (grupo `readiness` com `mongo`); `Test-Cq07.ps1`, que usa PostgreSQL, fica como legado da v0.30.0.
 - Data: 08/11/2026.
 - Escopo: Sprint 4, v0.23.0.
 

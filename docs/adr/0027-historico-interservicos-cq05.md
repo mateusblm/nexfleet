@@ -1,6 +1,6 @@
 # ADR 0027 — prova interserviços do histórico CQ05
 
-- Status: aceita.
+- Status: **Substituída por ADR 0039 e ADR 0040**. Na v1.0.0, o histórico de Operações é provado por `Cq05HistoricoVeiculoIT` (SQL Server em Testcontainers) e a Frota usa MongoDB; `Test-Cq05.ps1` fica como legado da v0.30.0.
 - Data: 08/11/2026.
 - Escopo: Sprint 4, v0.22.0.
 

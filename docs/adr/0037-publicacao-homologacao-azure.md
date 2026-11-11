@@ -1,7 +1,7 @@
 # ADR 0037 — publicação da homologação Azure e correções encontradas na nuvem
 
 Data: 10/11/2026
-Estado: aceita
+Estado: quanto à ordem de publicação (imagens no ACR, jobs `migrate`/`verify`, `bootstrap-admin.sh`) e ao PostgreSQL privado, **Substituída por ADR 0040, ADR 0042 e ADR 0044**; as correções da tabela continuam valendo
 
 ## Contexto
 

@@ -1,5 +1,7 @@
 # ADR 0019 — Função serverless de notificação
 
+Estado: aceita. A captura local em PostgreSQL foi **Substituída por ADR 0040** (schema `notificacoes` no SQL Server/Azure SQL); a migração continua sendo uma etapa anterior à Function.
+
 ## Contexto
 
 O PJBL exige uma função serverless que reaja ao registro de abastecimento, seja idempotente e tolere falhas. O comando de abastecimento já grava `AbastecimentoRegistrado.v1` na outbox e o publica no RabbitMQ depois do commit. O documento não informa destinatário, domínio remetente ou provedor de e-mail.

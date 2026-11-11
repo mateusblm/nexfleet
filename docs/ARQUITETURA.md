@@ -1,5 +1,7 @@
 # Arquitetura-alvo do NexFleet
 
+Atualização v1.0.0 (11/11/2026, entrega final): o código foi separado em nove repositórios públicos em `github.com/mateusblm`, com imagens no Docker Hub (ADR 0042). A Frota passou para o MongoDB Atlas (ADR 0039); Identidade, Operações, Indicadores e Notificações usam um único Azure SQL Database com um schema e um usuário contido por serviço (ADR 0040). O BFF ganhou `GET /aggregated-data`, que compõe Frota, Operações e a Function HTTP `calcular-eficiencia` (ADR 0041), e continua em Java (ADR 0043). A homologação ficou sem PostgreSQL, ACR e DNS privado, com escala a zero (ADR 0044). As seções abaixo que citam PostgreSQL descrevem a v0.30.0. Veja a [entrega v1.0.0](ENTREGA-v1.0.0.md).
+
 Atualização de 10/11/2026: a homologação foi publicada em `Central US` e validada. Estão no ar:
 
 - Static Web Apps e APIM;

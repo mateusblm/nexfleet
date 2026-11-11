@@ -1,6 +1,6 @@
 # ADR 0024 — backup e recuperação isolada para CQ10
 
-- Estado: aceita para a quinta fatia da Sprint 4.
+- Estado: **Substituída por ADR 0040** (e ADR 0039). Os dumps e a restauração em PostgreSQL valem para a v0.30.0; na v1.0.0 não há PostgreSQL e `Backup-Databases.ps1`/`Test-Recovery.ps1` ficam como legado.
 - Data: 08/11/2026.
 - Escopo: Sprint 4, v0.19.0.
 
