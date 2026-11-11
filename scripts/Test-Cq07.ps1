@@ -8,11 +8,11 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $localJava = Get-ChildItem (Join-Path $projectRoot '.tools/temurin-jdk-21') `
     -Filter java.exe -File -Recurse -ErrorAction SilentlyContinue |
     Select-Object -First 1
-if (-not (Get-Command java.exe -ErrorAction SilentlyContinue) -and $localJava) {
+if (-not (Get-Command java -ErrorAction SilentlyContinue) -and $localJava) {
     $env:JAVA_HOME = Split-Path -Parent (Split-Path -Parent $localJava.FullName)
     $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 }
-if (-not (Get-Command java.exe -ErrorAction SilentlyContinue)) {
+if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
     throw 'JDK 21 não encontrado. Execute primeiro scripts/Install-Dependencies.ps1.'
 }
 $javaVersion = (& java --version | Select-Object -First 1).ToString()
