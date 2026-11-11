@@ -47,7 +47,9 @@ class ContractFilesTest {
           "POST /api/v1/abastecimentos",
           "GET /api/v1/manutencoes",
           "POST /api/v1/manutencoes",
-          "GET /api/v1/dashboard");
+          "GET /api/v1/dashboard",
+          "GET /api/v1/aggregated-data",
+          "GET /aggregated-data");
 
   @Test
   void contratosOpenApiSaoCompletosECoerentes() throws IOException {
@@ -60,7 +62,7 @@ class ContractFilesTest {
           .toList();
     }
 
-    assertEquals(10, files.size(), "Quantidade inesperada de contratos OpenAPI.");
+    assertEquals(11, files.size(), "Quantidade inesperada de contratos OpenAPI.");
     Set<String> operationIds = new HashSet<>();
     Set<String> publicRoutes = new TreeSet<>();
 
