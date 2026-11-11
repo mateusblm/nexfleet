@@ -89,6 +89,7 @@ O passo a passo está no [guia de infraestrutura](docs/GUIA-INFRAESTRUTURA-AZURE
 | Para... | Leia |
 |---|---|
 | Entender, usar e operar o sistema (banco, RabbitMQ, Prometheus, Azure) | [docs/GUIA-USO-E-OPERACAO.md](docs/GUIA-USO-E-OPERACAO.md) |
+| Administrar contas e serviços na Azure (senhas, contas, acordar serviços) | [docs/GUIA-ADMINISTRACAO-AZURE.md](docs/GUIA-ADMINISTRACAO-AZURE.md) |
 | Executar passo a passo e resolver problemas | [docs/GUIA-EXECUCAO-LOCAL.md](docs/GUIA-EXECUCAO-LOCAL.md) · [macOS](docs/GUIA-EXECUCAO-MACOS.md) |
 | Estrutura de pastas e componentes | [docs/GUIA-ESTRUTURA-PROJETO.md](docs/GUIA-ESTRUTURA-PROJETO.md) |
 | Decisões de arquitetura | [docs/adr](docs/adr) |

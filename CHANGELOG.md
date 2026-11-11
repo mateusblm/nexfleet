@@ -1,5 +1,14 @@
 # Histórico de entregas
 
+## Ajustes pós-homologação — 11/11/2026
+
+- **Correção:** os microfrontends publicados (Frota, Operações e Painel) não carregavam no navegador; aparecia "Não foi possível carregar…".
+  - **Causa:** no modo biblioteca, o Vite não substitui `process.env.NODE_ENV`, e o React o lê ao ser carregado. O resultado era `process is not defined`.
+  - **Correção:** `define` em cada `vite.config.ts`. O pacote também caiu de cerca de 860 KB para cerca de 310 KB, porque passou a usar o React de produção.
+  - **Validação:** login e Painel abertos num navegador automático contra a Azure. O ambiente local (`npm run dev`) não era afetado.
+- **Novo:** `Invoke-AzureDatabaseQuery.ps1 -PermitirEscrita`, com confirmação explícita.
+- **Novo:** guia `docs/GUIA-ADMINISTRACAO-AZURE.md`, com contas, senhas e escala dos serviços.
+
 ## Homologação Azure — 10/11/2026
 
 - **Publicação:** homologação publicada em Central US.

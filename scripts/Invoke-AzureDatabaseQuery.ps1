@@ -5,19 +5,32 @@ param(
     [string]$Database,
     [Parameter(Mandatory)]
     [string]$Sql,
-    [string]$ProfilePath
+    [string]$ProfilePath,
+    # Libera INSERT/UPDATE/DELETE. Sem esta chave a sessao e somente leitura.
+    [switch]$PermitirEscrita
 )
 
-# Consulta SOMENTE LEITURA no PostgreSQL privado da homologacao Azure.
+# Consulta no PostgreSQL privado da homologacao Azure. Por padrao, SOMENTE LEITURA.
 # O servidor nao tem acesso publico: a consulta roda dentro da VNet, como execucao do job
 # job-nexfleet-db-verify com comando sobrescrito, usando o papel do proprio banco (nunca o
-# administrador). A sessao abre com default_transaction_read_only=on, entao INSERT/UPDATE/
-# DELETE/DDL falham. O resultado volta pelo Log Analytics (1 a 3 minutos de espera).
-# Exemplo:
+# administrador). Sem -PermitirEscrita a sessao abre com default_transaction_read_only=on,
+# entao INSERT/UPDATE/DELETE/DDL falham. Com -PermitirEscrita o script pede confirmacao.
+# O resultado volta pelo Log Analytics (1 a 3 minutos de espera).
+# Exemplos:
 #   ./scripts/Invoke-AzureDatabaseQuery.ps1 -Database frota -Sql "SELECT placa, status FROM frota.veiculo"
+#   ./scripts/Invoke-AzureDatabaseQuery.ps1 -Database identidade -PermitirEscrita `
+#       -Sql "DELETE FROM identidade.usuario WHERE email = 'x@example.com' RETURNING email"
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+$sessionOptions = '-c default_transaction_read_only=on -c statement_timeout=30000'
+if ($PermitirEscrita) {
+    Write-Host "ATENCAO: este comando ALTERA o banco '$Database' da Azure e nao pode ser desfeito:" -ForegroundColor Yellow
+    Write-Host "  $Sql" -ForegroundColor Yellow
+    if ((Read-Host 'Digite CONFIRMAR para executar') -cne 'CONFIRMAR') { throw 'Operacao cancelada.' }
+    $sessionOptions = '-c statement_timeout=30000'
+}
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $azureInfra = Join-Path $projectRoot 'infra/azure'
@@ -54,7 +67,7 @@ $script = @"
 set -eu
 export PGHOST="`$DB_HOST" PGSSLMODE=require PGDATABASE=$Database
 export PGUSER="`$${upper}_DB_USER" PGPASSWORD="`$${upper}_DB_PASSWORD"
-export PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=30000'
+export PGOPTIONS='$sessionOptions'
 printf '%s\n' "`$NX_SQL" | psql --no-password -v ON_ERROR_STOP=1 -P pager=off -P footer=on 2>&1 | sed 's/^/$marker | /'
 echo '$marker | FIM'
 "@
