@@ -35,6 +35,8 @@ jobs:
         run: ./mvnw -B -ntp -f quality/pom.xml verify "-Dnexfleet.repos.dir=$RUNNER_TEMP/repos"
       - name: Arquivos compose válidos
         run: |
-          docker compose --env-file .env.sprint0.example -f compose.sprint0.yaml config --quiet
-          docker compose --env-file .env.sprint0.example -f compose.sprint0.yaml -f compose.jwt-rsa.yaml config --quiet
-          IDENTIDADE_PROFILES=local-seed,jwt-rsa docker compose --env-file .env.sprint0.example -f compose.sprint0.yaml -f compose.sprint1-local.yaml -f compose.jwt-rsa.yaml config --quiet
+          docker compose --env-file .env.example -f compose.yaml config --quiet
+          docker compose --env-file .env.example -f compose.yaml -f compose.build.yaml config --quiet
+      - name: Scripts bash válidos
+        run: |
+          for script in scripts/*.sh infra/function/*.sh; do bash -n "$script"; done

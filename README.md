@@ -39,38 +39,41 @@ Operações → outbox → broker de eventos → Indicadores (painel) + Função
 | 5 PostgreSQL | PostgreSQL Flexible Server privado (5 bancos isolados) |
 | RabbitMQ | Service Bus |
 | Function local + captura de e-mail | Azure Functions + Communication Services Email |
-| Prometheus | Application Insights + Log Analytics |
+| Logs dos contêineres | Application Insights + Log Analytics |
 
 ## Executar localmente
 
-**Pré-requisitos:** Windows com PowerShell e **Docker Desktop** em execução. Node.js e JDK 21 são baixados pelo próprio projeto.
+**Pré-requisitos:** Docker com Compose v2, `bash`, `curl`, `jq` e `openssl`; ~6 GB de RAM livres (o SQL Server usa 2 GB). Node.js 24 só para as telas. Guia completo: [docs/GUIA-EXECUCAO-LOCAL.md](docs/GUIA-EXECUCAO-LOCAL.md).
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-
-./scripts/Install-Dependencies.ps1      # 1ª vez: Node, JDK, npm, Maven
-./scripts/Initialize-Local.ps1          # 1ª vez: cria .env.sprint0 e as chaves locais
-#   → edite .env.sprint0 e defina LOCAL_USER_PASSWORD
-./scripts/Start-Local.ps1 -ProvisionUser # 1ª vez (cria o usuário); depois: -NoBuild
+```bash
+scripts/iniciar-local.sh              # 1ª vez: .env com senhas aleatórias + chave RSA da Identidade
+docker compose up -d                  # imagens mateusblm/nexfleet-* do Docker Hub
+scripts/seed-demo.sh                  # veículos, motoristas, vínculos, abastecimentos, manutenções
 ```
 
-Em seguida, suba as telas em quatro terminais. Em cada um, rode primeiro `. .\scripts\Use-Local-Toolchain.ps1`:
+Para compilar a partir do código, clone os repositórios lado a lado e use o override:
 
-```powershell
-cd frontend;                  npm.cmd run dev   # 5173 (shell)
-cd microfrontends/frota;      npm.cmd run dev   # 5174
-cd microfrontends/operacoes;  npm.cmd run dev   # 5175
-cd microfrontends/painel;     npm.cmd run dev   # 5176
+```bash
+scripts/clonar-tudo.sh
+docker compose -f compose.yaml -f compose.build.yaml up -d --build
+```
+
+Telas (no repositório `nexfleet-frontend`, um terminal por pasta; `NEXFLEET_GATEWAY_URL` só se o Gateway não estiver em 8080):
+
+```bash
+cd frontend && NEXFLEET_GATEWAY_URL=http://127.0.0.1:8080 npm run dev   # 5173 (shell)
+cd microfrontends/frota && npm run dev       # 5174
+cd microfrontends/operacoes && npm run dev   # 5175
+cd microfrontends/painel && npm run dev      # 5176
 ```
 
 | Endereço | Uso |
 |---|---|
-| http://127.0.0.1:5173 | Sistema (login com `LOCAL_USER_EMAIL` / `LOCAL_USER_PASSWORD`) |
+| http://127.0.0.1:5173 | Sistema (login com `LOCAL_USER_EMAIL` / `LOCAL_USER_PASSWORD` do `.env`) |
+| http://127.0.0.1:8080/swagger-ui.html | Swagger UI (BFF, Frota, Operações, Identidade, Indicadores) |
 | http://127.0.0.1:15672 | RabbitMQ (`RABBITMQ_USER` / `RABBITMQ_PASSWORD`) |
-| http://127.0.0.1:9090 | Prometheus |
 
-Para parar: `./scripts/Stop-Local.ps1`. Os dados são preservados.
-Para testar: `./scripts/Test-Project.ps1`.
+Para parar: `docker compose down` (dados preservados; `-v` apaga os volumes).
 
 ## Azure
 
@@ -104,7 +107,7 @@ services/        6 serviços Java (gateway, bff, identidade, frota, operacoes, i
 frontend/        shell React
 microfrontends/  frota, operacoes, painel
 functions/       Azure Function de notificação
-infra/           Docker, RabbitMQ, Prometheus e Azure (Bicep)
+infra/           Bootstrap do SQL Server, RabbitMQ, Function local e Azure (Bicep)
 scripts/         execução local, testes e publicação na Azure
 quality/         contratos OpenAPI/AsyncAPI, carga (CQ09) e homologação
 docs/            guias, ADRs, aulas e evidências
@@ -114,8 +117,8 @@ docs/            guias, ADRs, aulas e evidências
 
 Senhas, chaves e identificadores da assinatura **nunca** são versionados:
 
-- `.env.sprint0`, `.secrets/` e os perfis da Azure ficam fora do repositório, pelo `.gitignore`;
-- cada desenvolvedor gera os seus com `Initialize-Local.ps1`;
+- `.env`, `.secrets/` e os perfis da Azure ficam fora do repositório, pelo `.gitignore`;
+- cada desenvolvedor gera os seus com `scripts/iniciar-local.sh`;
 - na Azure, os serviços se autenticam por identidade gerenciada, e o banco não tem acesso público.
 
 ## Equipe

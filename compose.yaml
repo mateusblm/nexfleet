@@ -1,0 +1,322 @@
+# NexFleet: execução local completa a partir das imagens do Docker Hub.
+#
+#   scripts/iniciar-local.sh                      # cria .env e a chave JWT (uma vez)
+#   docker compose up -d                          # imagens mateusblm/nexfleet-*:${NEXFLEET_TAG}
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build   # compila ../nexfleet-*
+#   scripts/seed-demo.sh                          # dados de demonstração via Gateway
+#
+# Portas publicadas só no loopback e ajustáveis pelo .env. Limites de memória pensados para
+# uma máquina de 8 GB (SQL Server exige 2 GB). Guia: docs/GUIA-EXECUCAO-LOCAL.md.
+name: nexfleet
+
+x-java: &java
+  restart: unless-stopped
+  mem_limit: ${JAVA_MEM_LIMIT:-512m}
+  networks: [nexfleet]
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
+    interval: 10s
+    timeout: 5s
+    start_period: 120s
+    retries: 12
+
+x-java-env: &java-env
+  # Somado ao -XX:MaxRAMPercentage=65 do ENTRYPOINT das imagens: GC serial e menos threads de
+  # compilação reduzem o consumo fora do heap em contêineres pequenos.
+  JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k}
+  SPRING_PROFILES_ACTIVE: jwt-rsa
+
+x-sql-url: &sql-url
+  DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=${NEXFLEET_DB:-nexfleet};encrypt=true;trustServerCertificate=true;loginTimeout=10
+
+services:
+  # --- Infraestrutura -----------------------------------------------------------------
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    mem_limit: 2g
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD (scripts/iniciar-local.sh)}
+      MSSQL_MEMORY_LIMIT_MB: ${MSSQL_MEMORY_LIMIT_MB:-1536}
+    ports: ["127.0.0.1:${SQLSERVER_PORT:-14330}:1433"]
+    volumes: [sqlserver-data:/var/opt/mssql]
+    networks: [nexfleet]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 12
+
+  # Uma execução por subida: banco, schemas e um usuário contido por serviço (idempotente).
+  sqlserver-bootstrap:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: "no"
+    entrypoint:
+      - /bin/bash
+      - -c
+      - /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -d master -i /bootstrap/bootstrap.sql
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD}
+      NEXFLEET_DB: ${NEXFLEET_DB:-nexfleet}
+      IDENTIDADE_DB_PASSWORD: ${IDENTIDADE_DB_PASSWORD:?Defina IDENTIDADE_DB_PASSWORD}
+      OPERACOES_DB_PASSWORD: ${OPERACOES_DB_PASSWORD:?Defina OPERACOES_DB_PASSWORD}
+      INDICADORES_DB_PASSWORD: ${INDICADORES_DB_PASSWORD:?Defina INDICADORES_DB_PASSWORD}
+      NOTIFICACOES_DB_PASSWORD: ${NOTIFICACOES_DB_PASSWORD:?Defina NOTIFICACOES_DB_PASSWORD}
+    volumes: ["./infra/sqlserver/bootstrap.sql:/bootstrap/bootstrap.sql:ro"]
+    networks: [nexfleet]
+    depends_on:
+      sqlserver: { condition: service_healthy }
+
+  mongodb:
+    image: ${MONGO_IMAGE:-mongo:7.0}
+    restart: unless-stopped
+    mem_limit: 512m
+    command: ["--wiredTigerCacheSizeGB", "0.25"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-nexfleet}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Defina MONGO_ROOT_PASSWORD}
+    ports: ["127.0.0.1:${MONGO_PORT:-27018}:27017"]
+    volumes: [mongodb-data:/data/db]
+    networks: [nexfleet]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    mem_limit: 384m
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-nexfleet}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+    ports: ["127.0.0.1:${RABBITMQ_MGMT_PORT:-15672}:15672"]
+    volumes: [rabbitmq-data:/var/lib/rabbitmq]
+    networks: [nexfleet]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      start_period: 20s
+      retries: 12
+
+  # Fila da Function e DLQ (as filas de Indicadores são declaradas pelo próprio serviço).
+  rabbitmq-topology:
+    image: rabbitmq:4-management-alpine
+    restart: "no"
+    entrypoint: ["/bin/sh", "/topology/Initialize-Topology.sh"]
+    environment:
+      RABBITMQADMIN_TARGET_HOST: rabbitmq
+      RABBITMQADMIN_USERNAME: ${RABBITMQ_USER:-nexfleet}
+      RABBITMQADMIN_PASSWORD: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+      RABBITMQADMIN_NON_INTERACTIVE_MODE: "true"
+    volumes: ["./infra/rabbitmq/Initialize-Topology.sh:/topology/Initialize-Topology.sh:ro"]
+    networks: [nexfleet]
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.37.0
+    restart: unless-stopped
+    mem_limit: 256m
+    command: [azurite, --blobHost, 0.0.0.0, --queueHost, 0.0.0.0, --tableHost, 0.0.0.0,
+              --location, /data, --disableTelemetry, --skipApiVersionCheck]
+    volumes: [azurite-data:/data]
+    networks: [nexfleet]
+    healthcheck:
+      test: ["CMD", "node", "-e", "const s=require('net').connect(10000,'127.0.0.1');s.on('connect',()=>process.exit(0));s.on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Copia a chave RSA para um volume legível pelo usuário 10001 da imagem da Identidade.
+  identidade-jwt-init:
+    image: alpine:3.22
+    restart: "no"
+    user: "0:0"
+    command:
+      - /bin/sh
+      - -c
+      - cp /run/secrets/source.pem /run/nexfleet/identidade-jwt.pem && chown 10001:0 /run/nexfleet/identidade-jwt.pem && chmod 0400 /run/nexfleet/identidade-jwt.pem
+    secrets:
+      - source: identidade-jwt
+        target: source.pem
+    volumes: [identidade-jwt-runtime:/run/nexfleet]
+    network_mode: none
+
+  # Migrações T-SQL da Function (ela não tem Flyway): lidas do jar dentro da própria imagem.
+  notificacoes-artefato:
+    image: mateusblm/nexfleet-function:${NEXFLEET_TAG:-latest}
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c", "rm -f /artefato/*.jar && cp /home/site/wwwroot/notificar-abastecimento-*.jar /artefato/"]
+    volumes: [notificacoes-artefato:/artefato]
+    network_mode: none
+  notificacoes-migracoes:
+    image: flyway/flyway:${FLYWAY_TAG:-13.12.0-alpine}
+    restart: "no"
+    command:
+      - -url=jdbc:sqlserver://sqlserver:1433;databaseName=${NEXFLEET_DB:-nexfleet};encrypt=true;trustServerCertificate=true
+      - -user=notificacoes
+      - -password=${NOTIFICACOES_DB_PASSWORD:?Defina NOTIFICACOES_DB_PASSWORD}
+      - -schemas=notificacoes
+      - -defaultSchema=notificacoes
+      - -createSchemas=false
+      - -jarDirs=/artefato
+      - -locations=classpath:db/migration
+      - migrate
+    volumes: [notificacoes-artefato:/artefato:ro]
+    networks: [nexfleet]
+    depends_on:
+      sqlserver-bootstrap: { condition: service_completed_successfully }
+      notificacoes-artefato: { condition: service_completed_successfully }
+
+  # --- Serviços --------------------------------------------------------------------------
+  identidade:
+    <<: *java
+    image: mateusblm/nexfleet-identidade:${NEXFLEET_TAG:-latest}
+    environment:
+      <<: [*java-env, *sql-url]
+      SPRING_PROFILES_ACTIVE: ${IDENTIDADE_PROFILES:-jwt-rsa,local-seed}
+      DB_USER: identidade
+      DB_PASSWORD: ${IDENTIDADE_DB_PASSWORD:?Defina IDENTIDADE_DB_PASSWORD}
+      AUTH_JWT_PRIVATE_KEY: file:/run/secrets/identidade-jwt.pem
+      # Perfil local-seed: cria a conta só se ela não existir (nunca troca a senha).
+      LOCAL_USER_EMAIL: ${LOCAL_USER_EMAIL:-admin@nexfleet.local}
+      LOCAL_USER_PASSWORD: ${LOCAL_USER_PASSWORD:?Defina LOCAL_USER_PASSWORD}
+      LOCAL_USER_PROFILE: ${LOCAL_USER_PROFILE:-ADMINISTRADOR}
+    volumes: [identidade-jwt-runtime:/run/secrets:ro]
+    depends_on:
+      sqlserver-bootstrap: { condition: service_completed_successfully }
+      identidade-jwt-init: { condition: service_completed_successfully }
+
+  frota:
+    <<: *java
+    image: mateusblm/nexfleet-frota:${NEXFLEET_TAG:-latest}
+    environment:
+      <<: *java-env
+      MONGODB_URI: ${MONGODB_URI:?Defina MONGODB_URI}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-frota}
+      IDENTIDADE_URL: http://identidade:8080
+    depends_on:
+      mongodb: { condition: service_healthy }
+      identidade: { condition: service_healthy }
+
+  operacoes:
+    <<: *java
+    image: mateusblm/nexfleet-operacoes:${NEXFLEET_TAG:-latest}
+    environment:
+      <<: [*java-env, *sql-url]
+      DB_USER: operacoes
+      DB_PASSWORD: ${OPERACOES_DB_PASSWORD:?Defina OPERACOES_DB_PASSWORD}
+      IDENTIDADE_URL: http://identidade:8080
+      FROTA_URL: http://frota:8080
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-nexfleet}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+    depends_on:
+      sqlserver-bootstrap: { condition: service_completed_successfully }
+      rabbitmq-topology: { condition: service_completed_successfully }
+      identidade: { condition: service_healthy }
+      frota: { condition: service_healthy }
+
+  indicadores:
+    <<: *java
+    image: mateusblm/nexfleet-indicadores:${NEXFLEET_TAG:-latest}
+    environment:
+      <<: [*java-env, *sql-url]
+      DB_USER: indicadores
+      DB_PASSWORD: ${INDICADORES_DB_PASSWORD:?Defina INDICADORES_DB_PASSWORD}
+      IDENTIDADE_URL: http://identidade:8080
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-nexfleet}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+    depends_on:
+      sqlserver-bootstrap: { condition: service_completed_successfully }
+      rabbitmq-topology: { condition: service_completed_successfully }
+      identidade: { condition: service_healthy }
+
+  function:
+    image: mateusblm/nexfleet-function:${NEXFLEET_TAG:-latest}
+    restart: unless-stopped
+    mem_limit: ${FUNCTION_MEM_LIMIT:-640m}
+    entrypoint: ["/bin/bash", "/nexfleet/iniciar-com-chaves.sh"]
+    environment:
+      AzureWebJobsStorage: >-
+        DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
+      AzureWebJobsSecretStorageType: files
+      FUNCTIONS_WORKER_RUNTIME: java
+      AzureWebJobs.NotificarAbastecimentoServiceBus.Disabled: "true"
+      RabbitMqConnection: amqp://${RABBITMQ_USER:-nexfleet}:${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}@rabbitmq:5672
+      DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=${NEXFLEET_DB:-nexfleet};encrypt=true;trustServerCertificate=true;loginTimeout=10
+      DB_USER: notificacoes
+      DB_PASSWORD: ${NOTIFICACOES_DB_PASSWORD:?Defina NOTIFICACOES_DB_PASSWORD}
+      EFICIENCIA_FUNCTION_KEY: ${EFICIENCIA_FUNCTION_KEY:?Defina EFICIENCIA_FUNCTION_KEY}
+      FUNCTION_MASTER_KEY: ${FUNCTION_MASTER_KEY:?Defina FUNCTION_MASTER_KEY}
+      languageWorkers__java__arguments: -XX:+UseSerialGC -XX:MaxRAMPercentage=50
+    ports: ["127.0.0.1:${FUNCTION_PORT:-17071}:80"]
+    volumes: ["./infra/function/iniciar-com-chaves.sh:/nexfleet/iniciar-com-chaves.sh:ro"]
+    networks: [nexfleet]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/admin/host/ping"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 12
+    depends_on:
+      azurite: { condition: service_healthy }
+      rabbitmq-topology: { condition: service_completed_successfully }
+      notificacoes-migracoes: { condition: service_completed_successfully }
+
+  bff:
+    <<: *java
+    image: mateusblm/nexfleet-bff:${NEXFLEET_TAG:-latest}
+    mem_limit: ${JAVA_SMALL_MEM_LIMIT:-448m}
+    environment:
+      <<: *java-env
+      IDENTIDADE_URL: http://identidade:8080
+      FROTA_URL: http://frota:8080
+      OPERACOES_URL: http://operacoes:8080
+      INDICADORES_URL: http://indicadores:8080
+      EFICIENCIA_FUNCTION_URL: ${EFICIENCIA_FUNCTION_URL:-http://function:80}
+      EFICIENCIA_FUNCTION_KEY: ${EFICIENCIA_FUNCTION_KEY:?Defina EFICIENCIA_FUNCTION_KEY}
+    depends_on:
+      identidade: { condition: service_healthy }
+      frota: { condition: service_healthy }
+      operacoes: { condition: service_healthy }
+      indicadores: { condition: service_healthy }
+      function: { condition: service_healthy }
+
+  gateway:
+    <<: *java
+    image: mateusblm/nexfleet-gateway:${NEXFLEET_TAG:-latest}
+    mem_limit: ${JAVA_SMALL_MEM_LIMIT:-448m}
+    environment:
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k}
+      BFF_URL: ${BFF_URL:-http://bff:8080}
+      IDENTIDADE_URL: ${IDENTIDADE_URL:-http://identidade:8080}
+      FROTA_URL: ${FROTA_URL:-http://frota:8080}
+      OPERACOES_URL: ${OPERACOES_URL:-http://operacoes:8080}
+      INDICADORES_URL: ${INDICADORES_URL:-http://indicadores:8080}
+    ports: ["127.0.0.1:${GATEWAY_PORT:-8080}:8080"]
+    depends_on:
+      bff: { condition: service_healthy }
+
+networks:
+  nexfleet:
+
+secrets:
+  identidade-jwt:
+    file: ${JWT_PRIVATE_KEY_FILE:-./.secrets/identidade-jwt.pem}
+
+volumes:
+  sqlserver-data:
+  mongodb-data:
+  rabbitmq-data:
+  azurite-data:
+  identidade-jwt-runtime:
+  notificacoes-artefato:

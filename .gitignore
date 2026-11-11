@@ -1,7 +1,6 @@
 .env
-.env.sprint0
 .env.*
-!.env.sprint0.example
+!.env.example
 **/node_modules/
 **/dist/
 *.zip

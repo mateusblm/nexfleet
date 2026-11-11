@@ -1,497 +1,137 @@
 # Guia de execução local do NexFleet
 
-Para preparar a homologação sem criar recursos, consulte também o [guia de pré-publicação Azure](GUIA-PRE-PUBLICACAO-AZURE.md).
+Sobe o sistema inteiro (6 serviços Java, Azure Function, SQL Server, MongoDB, RabbitMQ e Azurite) a partir do repositório guarda-chuva, com as imagens do Docker Hub ou compilando os repositórios irmãos. Comandos em `bash` a partir da raiz do guarda-chuva (Linux, macOS ou WSL).
 
-Este guia explica como preparar, iniciar, acessar, testar e parar o NexFleet no Windows. Os comandos devem ser executados no PowerShell a partir da raiz do projeto. No MacBook, use o [guia específico para macOS](GUIA-EXECUCAO-MACOS.md).
+## 1. Pré-requisitos
 
-Para entender a responsabilidade de cada pasta e o fluxo interno das requisições, consulte o [Guia de estrutura e arquitetura](GUIA-ESTRUTURA-PROJETO.md).
+- Docker com Compose v2 e ~6 GB de RAM livres (o SQL Server sozinho usa até 2 GB; cada serviço Java até 512 MB).
+- `bash`, `curl`, `jq`, `openssl` e `git`.
+- Node.js 24 para as telas (repositório `nexfleet-frontend`).
 
-## 1. Visão geral
+## 2. Preparar (uma vez)
 
-O ambiente local possui duas partes:
-
-- **backend e infraestrutura**, executados pelo Docker Compose;
-- **frontend**, executado pelo Vite em quatro terminais.
-
-O navegador acessa somente o shell em `http://127.0.0.1:5173`. O shell e os microfrontends chamam o API Gateway em `http://127.0.0.1:8080`; eles nunca devem acessar os bancos diretamente.
-
-## 2. Pré-requisitos
-
-Antes de começar, confirme que possui:
-
-1. Windows PowerShell 5.1 ou PowerShell 7;
-2. Docker Desktop iniciado e usando contêineres Linux;
-3. VS Code;
-4. conexão com a internet na primeira instalação;
-5. pgAdmin ou DBeaver apenas se quiser uma interface gráfica para o PostgreSQL.
-
-Node.js 24 e JDK 21 não precisam ser instalados globalmente. O projeto mantém cópias portáteis em `.tools`.
-
-Verifique o Docker:
-
-```powershell
-docker version
-docker info
+```bash
+scripts/iniciar-local.sh
 ```
 
-Os dois comandos devem mostrar informações do cliente e do servidor Docker.
+- Cria `.env` a partir de `.env.example`, trocando cada `SUBSTITUA_*` por uma senha aleatória. Nunca sobrescreve um `.env` existente.
+- Gera `.secrets/identidade-jwt.pem` (RSA 3072, PKCS#8) com `scripts/gerar-chave-jwt.sh`; uma chave existente nunca é substituída.
+- Avisa se alguma porta publicada já está em uso. Troque-a no `.env` (`GATEWAY_PORT`, `SQLSERVER_PORT`, `MONGO_PORT`, `RABBITMQ_MGMT_PORT`, `FUNCTION_PORT`).
 
-## 3. Entrar na pasta correta
+`.env` e `.secrets/` ficam fora do Git.
 
-Abra o PowerShell e execute:
+## 3. Subir
 
-```powershell
-cd "C:\Users\vinig\Downloads\Nova pasta\NexFleet-v0.14.0"
+Imagens publicadas (`mateusblm/nexfleet-<svc>:${NEXFLEET_TAG}`):
+
+```bash
+docker compose up -d
 ```
 
-Confirme a pasta:
+Compilando a partir do código, com os repositórios lado a lado do guarda-chuva:
 
-```powershell
-Get-Location
-Test-Path ".\scripts\Start-Local.ps1"
+```bash
+scripts/clonar-tudo.sh                                   # clona os 8 repositórios que faltam
+docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
-O segundo comando deve retornar `True`.
+Para compilar de outra pasta (por exemplo, worktrees), defina `NEXFLEET_REPOS_DIR` (padrão `..`).
 
-## 4. Instalar as dependências
+Ordem de subida, garantida por `depends_on` com `condition`:
 
-Esta etapa é necessária na primeira preparação do projeto ou depois de uma alteração relevante nas dependências:
+1. `sqlserver`, `mongodb`, `rabbitmq`, `azurite` (healthchecks).
+2. `sqlserver-bootstrap` roda `infra/sqlserver/bootstrap.sql` com `sqlcmd` (banco, schemas e usuários; ver seção 6) e `rabbitmq-topology` declara a fila da Function.
+3. `notificacoes-migracoes` aplica as migrações T-SQL da Function com a CLI do Flyway, lidas do jar dentro da imagem da Function.
+4. `identidade` (perfil `jwt-rsa,local-seed`: cria o Administrador do `.env` se ele não existir), depois `frota`, `operacoes`, `indicadores` e `function`, depois `bff` e `gateway`.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Install-Dependencies.ps1"
+A primeira subida leva alguns minutos. Acompanhe com `docker compose ps`; todos os serviços ficam `healthy` e os de execução única terminam com `Exited (0)`.
+
+## 4. Dados de demonstração
+
+```bash
+scripts/seed-demo.sh
 ```
 
-O script baixa Node.js 24 e JDK 21 portáteis, executa `npm ci` no shell e nos microfrontends, prepara o cache Maven e baixa imagens Docker quando possível.
+Pela API pública do Gateway: login do Administrador, 5 veículos, 5 motoristas, um vínculo por veículo, 15 abastecimentos (quilometragem crescente) e 6 manutenções (datas passadas variadas). Rodar de novo não duplica nada: 409 é ignorado e veículos que já têm abastecimentos ou manutenções são pulados.
 
-## 5. Inicializar a configuração local
+Contra outro ambiente: `NEXFLEET_API=https://<gateway> NEXFLEET_EMAIL=... NEXFLEET_SENHA=... scripts/seed-demo.sh`.
 
-Execute uma vez:
+Abastecimentos exigem vínculo vigente no instante informado, e o vínculo começa no momento da criação; por isso os abastecimentos do seed têm o instante atual.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Initialize-Local.ps1"
-```
+## 5. Endereços
 
-O script cria ou completa:
-
-- `.env.sprint0`, com configurações e segredos locais;
-- `.secrets/identidade-jwt.pem`, com a chave privada RSA local.
-
-Abra `.env.sprint0` e substitua o marcador de `LOCAL_USER_PASSWORD` por uma senha local forte. Não publique, envie ou faça commit de `.env.sprint0` e `.secrets`.
-
-As credenciais de login da aplicação são os valores destas variáveis:
-
-```text
-LOCAL_USER_EMAIL
-LOCAL_USER_PASSWORD
-```
-
-As senhas dos bancos são separadas da senha de login.
-
-## 6. Primeira subida do backend
-
-Na primeira execução, crie o usuário administrativo local:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Start-Local.ps1" -ProvisionUser
-```
-
-O processo pode demorar na primeira vez porque o Docker precisa construir imagens e baixar dependências. O script aguarda os serviços e executa verificações de integração, eventos e métricas.
-
-O provisionamento do usuário deve ser feito somente na primeira execução ou quando o volume do banco de Identidade for recriado.
-
-## 7. Subidas seguintes do backend
-
-Nas execuções normais:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Start-Local.ps1"
-```
-
-Quando as imagens já foram construídas e nenhum código Java ou Dockerfile mudou, é possível iniciar sem reconstruí-las:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Start-Local.ps1" -NoBuild
-```
-
-Confira os contêineres:
-
-```powershell
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-```
-
-Principais endereços:
-
-| Recurso | Endereço |
+| Endereço | Uso |
 |---|---|
-| API Gateway | `http://127.0.0.1:8080` |
-| RabbitMQ Management | `http://127.0.0.1:15672` |
-| Prometheus | `http://127.0.0.1:9090` |
+| `http://127.0.0.1:${GATEWAY_PORT}` | API pública (Gateway) |
+| `http://127.0.0.1:${GATEWAY_PORT}/swagger-ui.html` | Swagger UI com BFF, Frota, Operações, Identidade e Indicadores |
+| `http://127.0.0.1:${GATEWAY_PORT}/aggregated-data` | Visão consolidada (com token) |
+| `http://127.0.0.1:${RABBITMQ_MGMT_PORT}` | RabbitMQ (`RABBITMQ_USER` / `RABBITMQ_PASSWORD`) |
+| `127.0.0.1:${SQLSERVER_PORT}` | SQL Server (banco `nexfleet`; logins na seção 6) |
+| `127.0.0.1:${MONGO_PORT}` | MongoDB da Frota (`MONGO_ROOT_USER` / `MONGO_ROOT_PASSWORD`) |
+| `http://127.0.0.1:${FUNCTION_PORT}/api/calcular-eficiencia` | Function HTTP (cabeçalho `x-functions-key`) |
 
-O usuário e a senha do RabbitMQ estão em `RABBITMQ_USER` e `RABBITMQ_PASSWORD` no `.env.sprint0`.
+## 6. Banco SQL Server: schema e usuário por serviço
 
-## 8. Subir o frontend
+`infra/sqlserver/bootstrap.sql` é idempotente e roda a cada `up`:
 
-O frontend possui um shell e três microfrontends. Abra quatro terminais no VS Code.
+- No SQL Server local (não no Azure SQL Database), habilita `contained database authentication`, cria o banco `nexfleet` e o deixa com `CONTAINMENT = PARTIAL`.
+- Para cada serviço (`identidade`, `operacoes`, `indicadores`, `notificacoes`), cria um **usuário contido** (`CREATE USER x WITH PASSWORD`; se já existir, a senha é sincronizada com o `.env`), o schema de mesmo nome **pertencente a esse usuário** e concede `CREATE TABLE` e `CREATE VIEW`. Nada é concedido em outro schema.
+- O schema pertence ao serviço, e não a `dbo`, para não haver encadeamento de propriedade: com todos os schemas de `dbo`, um serviço poderia criar no próprio schema uma view sobre outro schema e lê-lo.
+- Os serviços usam `spring.flyway.create-schemas=false`: quem cria o schema é o bootstrap.
 
-Em **cada terminal**, comece na raiz do projeto e ative o toolchain:
+O mesmo script serve no Azure SQL Database, que não tem `CREATE LOGIN` no banco de usuário. Rode-o conectado ao banco `nexfleet` com o administrador do servidor:
 
-```powershell
-cd "C:\Users\vinig\Downloads\Nova pasta\NexFleet-v0.14.0"
-Set-ExecutionPolicy -Scope Process Bypass -Force
-. .\scripts\Use-Local-Toolchain.ps1
+```bash
+NEXFLEET_DB=nexfleet IDENTIDADE_DB_PASSWORD=... OPERACOES_DB_PASSWORD=... \
+INDICADORES_DB_PASSWORD=... NOTIFICACOES_DB_PASSWORD=... \
+sqlcmd -S <servidor>.database.windows.net -d nexfleet -U <admin> -b -i infra/sqlserver/bootstrap.sql
 ```
 
-### Terminal 1 — shell
+As senhas são interpoladas como texto pelo `sqlcmd`: não use aspas simples nelas.
 
-```powershell
-cd frontend
-npm.cmd run dev
+Conferir o isolamento:
+
+```bash
+set -a; . ./.env; set +a
+docker compose exec -e PW="$OPERACOES_DB_PASSWORD" sqlserver bash -c \
+  '/opt/mssql-tools18/bin/sqlcmd -S localhost -d nexfleet -U operacoes -P "$PW" -C -Q "SELECT TOP 1 email FROM identidade.usuario"'
+# Msg 229: The SELECT permission was denied on the object 'usuario', ... schema 'identidade'.
 ```
 
-### Terminal 2 — Frota
+## 7. Function local e chave do gatilho HTTP
 
-```powershell
-cd microfrontends/frota
-npm.cmd run dev
+O gatilho `CalcularEficiencia` usa `authLevel = FUNCTION`: sem chave, o host responde 401. Localmente o contêiner `function` usa `AzureWebJobsSecretStorageType=files` e `infra/function/iniciar-com-chaves.sh` escreve `/azure-functions-host/Secrets/host.json` antes de iniciar o host, com:
+
+- `EFICIENCIA_FUNCTION_KEY` como chave de host (`functionKeys.default`), válida para qualquer função; o BFF a envia em `x-functions-key`;
+- `FUNCTION_MASTER_KEY` como chave mestra.
+
+O BFF chama `EFICIENCIA_FUNCTION_URL` (local: `http://function:80`). Na Azure as chaves ficam no armazenamento da Function App e o script não é usado. O gatilho RabbitMQ da notificação continua ativo localmente (fila `nexfleet.notificacoes.abastecimentos.v1`); o de Service Bus fica desabilitado.
+
+## 8. Telas
+
+No repositório `nexfleet-frontend`, um terminal por pasta (`npm ci` na primeira vez):
+
+```bash
+cd frontend && NEXFLEET_GATEWAY_URL=http://127.0.0.1:${GATEWAY_PORT} npm run dev   # 5173
+cd microfrontends/frota && npm run dev       # 5174
+cd microfrontends/operacoes && npm run dev   # 5175
+cd microfrontends/painel && npm run dev      # 5176
 ```
 
-### Terminal 3 — Operações
+O shell encaminha `/api` ao Gateway (`NEXFLEET_GATEWAY_URL`, padrão `http://127.0.0.1:8080`). A página dos eventos (`/docs/eventos/`) é estática: no `npm run dev` abra `/docs/eventos/index.html`; com `npm run build && npx vite preview` ela responde em `/docs/eventos/`.
 
-```powershell
-cd microfrontends/operacoes
-npm.cmd run dev
+## 9. Logs, parar e limpar
+
+```bash
+docker compose logs -f bff                 # um serviço
+docker compose down                        # para; dados preservados nos volumes
+docker compose down -v                     # apaga também SQL Server, MongoDB, RabbitMQ e Azurite
 ```
 
-### Terminal 4 — Painel
-
-```powershell
-cd microfrontends/painel
-npm.cmd run dev
-```
-
-| Interface | Porta |
-|---|---:|
-| Shell | 5173 |
-| Frota | 5174 |
-| Operações | 5175 |
-| Painel | 5176 |
-
-Acesse `http://127.0.0.1:5173` e entre com `LOCAL_USER_EMAIL` e `LOCAL_USER_PASSWORD` do `.env.sprint0`.
-
-## 9. Bancos de dados
-
-Para entender autenticação, acesso `trust`, conexão com senha e rotação segura, consulte o [Guia de segurança dos bancos locais](GUIA-SEGURANCA-BANCO-LOCAL.md).
-
-O NexFleet utiliza um banco PostgreSQL separado para cada domínio:
-
-| Domínio | Contêiner | Banco/usuário | Schema | Variável da senha |
-|---|---|---|---|---|
-| Identidade | `nexfleet-sprint0-identidade-db-1` | `identidade` | `identidade` | `IDENTIDADE_DB_PASSWORD` |
-| Frota | `nexfleet-sprint0-frota-db-1` | `frota` | `frota` | `FROTA_DB_PASSWORD` |
-| Operações | `nexfleet-sprint0-operacoes-db-1` | `operacoes` | `operacoes` | `OPERACOES_DB_PASSWORD` |
-| Indicadores | `nexfleet-sprint0-indicadores-db-1` | `indicadores` | `indicadores` | `INDICADORES_DB_PASSWORD` |
-| Notificações | `nexfleet-sprint0-notificacoes-db-1` | `notificacoes` | `notificacoes` | `NOTIFICACOES_DB_PASSWORD` |
-
-O PostgreSQL instalado diretamente no Windows é outra instância. Os dados do NexFleet ficam nos contêineres e volumes Docker.
-
-### 9.1. Acessar pelo PowerShell
-
-```powershell
-# Frota
-docker exec -it nexfleet-sprint0-frota-db-1 psql -U frota -d frota
-
-# Identidade
-docker exec -it nexfleet-sprint0-identidade-db-1 psql -U identidade -d identidade
-
-# Operações
-docker exec -it nexfleet-sprint0-operacoes-db-1 psql -U operacoes -d operacoes
-
-# Indicadores
-docker exec -it nexfleet-sprint0-indicadores-db-1 psql -U indicadores -d indicadores
-
-# Notificações
-docker exec -it nexfleet-sprint0-notificacoes-db-1 psql -U notificacoes -d notificacoes
-```
-
-O acesso pelo socket interno do contêiner não solicita senha. Quem possui permissão para usar `docker exec` já possui controle administrativo sobre o contêiner.
-
-Para testar a autenticação por senha via TCP, use `-h` e `-W`. Exemplo de Frota:
-
-```powershell
-docker exec -it nexfleet-sprint0-frota-db-1 psql -h frota-db -U frota -d frota -W
-```
-
-Quando aparecer `Password:`, digite o valor de `FROTA_DB_PASSWORD`. A senha não aparece durante a digitação.
-
-### 9.2. Comandos básicos do `psql`
-
-Depois de entrar e aparecer `frota=#`:
-
-```sql
-\conninfo
-SET search_path TO frota;
-\dt
-\d veiculo
-SELECT id, placa, marca, modelo, ano, status, quilometragem
-FROM veiculo
-ORDER BY criado_em DESC;
-```
-
-Para sair:
-
-```sql
-\q
-```
-
-Consultas somente de leitura:
-
-```sql
-SELECT id, nome, cpf, cnh, status
-FROM frota.motorista
-ORDER BY criado_em DESC;
-
-SELECT *
-FROM operacoes.abastecimento
-ORDER BY realizado_em DESC;
-
-SELECT *
-FROM operacoes.manutencao
-ORDER BY realizada_em DESC;
-
-SELECT id, email, perfil, ativo
-FROM identidade.usuario
-ORDER BY email;
-```
-
-Evite `UPDATE`, `DELETE`, `TRUNCATE` e `DROP` diretamente. Cadastros devem ser feitos pela interface ou API para que validações, autorização, auditoria, outbox e eventos sejam executados corretamente.
-
-### 9.3. Acessar pelo pgAdmin ou DBeaver
-
-O arquivo opcional `compose.db-access.yaml` publica os bancos somente em `127.0.0.1`, usando portas alternativas para não conflitar com um PostgreSQL instalado no Windows.
-
-Com o backend iniciado, execute na raiz:
-
-```powershell
-docker compose `
-  --env-file ".env.sprint0" `
-  -f "compose.sprint0.yaml" `
-  -f "compose.jwt-rsa.yaml" `
-  -f "compose.db-access.yaml" `
-  up -d --no-build
-```
-
-Cadastre cada conexão no pgAdmin em **Servers > Register > Server**:
-
-| Banco | Host | Porta | Database | Username | Senha no `.env.sprint0` |
-|---|---|---:|---|---|---|
-| Identidade | `127.0.0.1` | 15432 | `identidade` | `identidade` | `IDENTIDADE_DB_PASSWORD` |
-| Frota | `127.0.0.1` | 15433 | `frota` | `frota` | `FROTA_DB_PASSWORD` |
-| Operações | `127.0.0.1` | 15434 | `operacoes` | `operacoes` | `OPERACOES_DB_PASSWORD` |
-| Indicadores | `127.0.0.1` | 15435 | `indicadores` | `indicadores` | `INDICADORES_DB_PASSWORD` |
-| Notificações | `127.0.0.1` | 15436 | `notificacoes` | `notificacoes` | `NOTIFICACOES_DB_PASSWORD` |
-
-Para encontrar as tabelas no pgAdmin:
-
-```text
-Servers
-└── NexFleet Frota
-    └── Databases
-        └── frota
-            └── Schemas
-                └── frota
-                    └── Tables
-```
-
-Essas portas aceitam conexões somente do próprio computador. Não altere `127.0.0.1` para `0.0.0.0` em desenvolvimento.
-
-## 10. Ver logs
-
-Todos os serviços:
-
-```powershell
-docker compose `
-  --env-file ".env.sprint0" `
-  -f "compose.sprint0.yaml" `
-  -f "compose.jwt-rsa.yaml" `
-  logs --tail 100
-```
-
-Um serviço específico, acompanhando novas linhas:
-
-```powershell
-docker compose `
-  --env-file ".env.sprint0" `
-  -f "compose.sprint0.yaml" `
-  -f "compose.jwt-rsa.yaml" `
-  logs -f --tail 100 frota
-```
-
-Use `Ctrl+C` para sair dos logs; isso não para o contêiner.
-
-### Localizar uma operação pelo identificador de correlação
-
-Cada resposta da API contém `X-Correlation-ID`. Para criar um valor conhecido e localizar a mesma chamada nos serviços:
-
-```powershell
-$id = [guid]::NewGuid().ToString()
-$resposta = Invoke-WebRequest `
-  -UseBasicParsing `
-  -Uri "http://127.0.0.1:8080/api/v1/ambiente" `
-  -Headers @{ "X-Correlation-ID" = $id }
-
-$resposta.Headers["X-Correlation-ID"]
-
-docker compose `
-  --env-file ".env.sprint0" `
-  -f "compose.sprint0.yaml" `
-  -f "compose.sprint1-local.yaml" `
-  -f "compose.jwt-rsa.yaml" `
-  logs --since 5m gateway bff identidade frota operacoes indicadores |
-  Select-String -SimpleMatch $id
-```
-
-Pesquise pelo UUID, nunca pelo JWT, senha, CPF ou CNH. O fluxo completo é explicado na [Aula 20](tutorials/20-correlacao-ponta-a-ponta.md).
-
-## 11. Executar os testes
-
-```powershell
-# Teste geral
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Project.ps1"
-
-# Teste geral sem reinstalar dependências JavaScript
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Project.ps1" -SkipInstall
-
-# CQ03/CQ04: PostgreSQL temporário, quilometragem regressiva e rollback integral
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Cq03Cq04.ps1"
-
-# CQ05: dois bancos temporários, inativação e preservação do histórico
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Cq05.ps1"
-
-# CQ07: banco indisponível, readiness e log seguro
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Cq07.ps1"
-
-# Teste geral incluindo as provas integradas CQ03/CQ04/CQ05/CQ07
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Project.ps1" -SkipInstall -IncludeDatabaseIntegration
-
-# Contratos HTTP reais, sem gravar dados de negócio
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-ApiContracts.ps1"
-
-# Smoke E2E completo: APIs, filas, Function, DLQ e Prometheus
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-E2E.ps1"
-
-# CQ09: 100 usuários simultâneos, listas paginadas e p95 abaixo de 2 segundos
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Performance.ps1"
-
-# E2E completo incluindo o CQ09
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-E2E.ps1" -IncludePerformance
-
-# CQ10: backup temporário e restauração isolada dos cinco bancos
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Recovery.ps1"
-
-# E2E com desempenho e recuperação
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-E2E.ps1" -IncludePerformance -IncludeRecovery
-
-# Testes específicos com o ambiente ativo
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Sprint2Eda.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Sprint3Serverless.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-Observability.ps1"
-```
-
-`Test-Project.ps1` também executa os contratos OpenAPI/AsyncAPI em `quality/`. `Test-ApiContracts.ps1` e `Test-Performance.ps1` leem `LOCAL_USER_EMAIL` e `LOCAL_USER_PASSWORD` do `.env.sprint0`, mas não imprimem esses valores. O E2E não cria dados de Frota ou Operações; o teste da Function grava somente uma notificação com UUID aleatório e envia uma mensagem inválida para a DLQ, como evidência controlada de idempotência e retry. O CQ09 é somente leitura e seus parâmetros podem ser ajustados com `-Users`, `-Iterations`, `-PageSize` e `-ThresholdMs`.
-
-`Test-Recovery.ps1` cria cópias temporárias dos cinco bancos, restaura em contêineres isolados e compara as tabelas. Ele não substitui os bancos ativos e apaga os artefatos do ensaio ao terminar. Para manter um backup manual em `backups/<data-hora>`, use `Backup-Databases.ps1`; proteja esses arquivos porque contêm dados do sistema.
-
-Os testes frontend incluídos em `Test-Project.ps1` também comprovam o CQ06: uma tentativa inválida mantém os campos corretos, marca os controles que precisam de correção e exibe uma mensagem acessível. Consulte a [Evidência CQ06](EVIDENCIA-CQ06-USABILIDADE.md) e a [matriz CQ01–CQ12](MATRIZ-CQ01-CQ12.md).
-
-`Test-Cq03Cq04.ps1` não usa `.env.sprint0`: ele gera credenciais, porta e contêiner exclusivos, aplica as migrações de Operações e apaga o ambiente ao terminar. Portanto, pode ser executado com o NexFleet ativo sem alterar abastecimentos, hodômetros ou eventos existentes. Consulte a [Evidência CQ03/CQ04](EVIDENCIA-CQ03-CQ04-TRANSACAO.md).
-
-`Test-Cq05.ps1` também não usa `.env.sprint0`. Ele cria bancos separados para Frota e Operações, executa a sequência criar/registrar/inativar/consultar e remove os dois contêineres. Consulte a [Evidência CQ05](EVIDENCIA-CQ05-HISTORICO.md).
-
-`Test-Cq07.ps1` empacota Frota e cria serviço, banco e rede temporários. Ele para somente o banco criado pelo próprio ensaio, verifica readiness/API `DOWN/503`, inspeciona correlação e reprova se as sentinelas de senha ou token aparecerem no log. Consulte a [Evidência CQ07](EVIDENCIA-CQ07-INDISPONIBILIDADE.md).
-
-Para executar o E2E sem a prova serverless ou sem o Prometheus:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-E2E.ps1" -SkipServerless
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Test-E2E.ps1" -SkipObservability
-```
-
-## 12. Parar o projeto
-
-Nos quatro terminais do frontend, pressione `Ctrl+C`.
-
-Depois, na raiz do projeto:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Stop-Local.ps1"
-```
-
-Esse comando para os contêineres, mas preserva os volumes e os dados dos bancos.
-
-Não execute `docker compose down -v` a menos que queira apagar permanentemente todos os dados locais do NexFleet.
-
-## 13. Rotina diária resumida
-
-1. Inicie o Docker Desktop.
-2. Entre na raiz do projeto.
-3. Execute `Start-Local.ps1 -NoBuild`.
-4. Abra quatro terminais e ative `Use-Local-Toolchain.ps1` em cada um.
-5. Inicie shell, Frota, Operações e Painel com `npm.cmd run dev`.
-6. Acesse `http://127.0.0.1:5173`.
-7. Ao terminar, use `Ctrl+C` nos frontends e execute `Stop-Local.ps1`.
-
-## 14. Solução de problemas
-
-### O PowerShell mostra `>>`
-
-O PowerShell está esperando o restante de um comando incompleto. Pressione `Ctrl+C` e execute o comando novamente. Em comandos de várias linhas, o caractere de continuação `` ` `` deve ser o último caractere da linha.
-
-### O terminal está em `C:\Windows\System32`
-
-```powershell
-cd "C:\Users\vinig\Downloads\Nova pasta\NexFleet-v0.14.0"
-```
-
-### Execução de scripts desabilitada
-
-Use `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` como mostrado neste guia. O bypass fica limitado ao novo processo.
-
-### Docker Desktop não está disponível
-
-Abra o Docker Desktop, aguarde **Engine running** e execute `docker info`.
-
-### A tela abre, mas algum microfrontend não carrega
-
-Confirme as quatro portas:
-
-```powershell
-Get-NetTCPConnection -State Listen | Where-Object LocalPort -In 5173,5174,5175,5176
-```
-
-### Erro 401 ou sessão expirada
-
-Entre novamente usando `LOCAL_USER_EMAIL` e `LOCAL_USER_PASSWORD`. Não use as senhas dos bancos na tela de login.
-
-### pgAdmin mostra `connection refused`
-
-1. Confirme que o banco está ativo com `docker ps`.
-2. Execute o comando da seção 9.3 com `compose.db-access.yaml`.
-3. Use host `127.0.0.1`, não `frota-db`.
-4. Use a porta alternativa correta, por exemplo 15433 para Frota.
-5. Use a senha correspondente do `.env.sprint0`.
-
-### O veículo salvo não aparece
-
-Clique em **Atualizar lista**, remova filtros e confira a página atual. Cadastros feitos diretamente no banco não atualizam outras sessões do navegador em tempo real.
-
-### Verificar portas ocupadas
-
-```powershell
-Get-NetTCPConnection -State Listen |
-  Where-Object LocalPort -In 8080,9090,15672,5173,5174,5175,5176,15432,15433,15434,15435,15436 |
-  Sort-Object LocalPort
-```
-
-## Preparação Azure
-
-A execução local não exige Azure. A infraestrutura Bicep e o ponto exato em que uma conta passa a ser necessária estão no [Guia da infraestrutura Azure com Bicep](GUIA-INFRAESTRUTURA-AZURE-BICEP.md). Não use comandos de deploy antes do preflight conectado e da revisão do `what-if`.
+## 10. Problemas comuns
+
+- **`sqlserver-bootstrap` falha com "password does not meet ... policy"**: a senha precisa de 8+ caracteres com maiúscula, minúscula e dígito e não pode conter o nome do usuário. O `iniciar-local.sh` já gera senhas válidas.
+- **Trocou `MSSQL_SA_PASSWORD` depois da primeira subida**: o volume guarda a senha antiga; volte a anterior ou rode `docker compose down -v`.
+- **MongoDB não sobe com `mongo:8` em kernel Linux 6.19+** (SERVER-121912): mantenha `MONGO_IMAGE=mongo:7.0`.
+- **Porta ocupada**: troque a porta no `.env` e, para as telas, passe a nova porta do Gateway em `NEXFLEET_GATEWAY_URL`.
+- **Pouca memória**: reduza `JAVA_MEM_LIMIT` (mínimo prático ~384m) ou `MSSQL_MEMORY_LIMIT_MB`.

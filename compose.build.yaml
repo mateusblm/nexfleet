@@ -1,0 +1,20 @@
+# Override opcional: compila as imagens a partir dos repositórios clonados lado a lado
+# (scripts/clonar-tudo.sh). As imagens recebem as mesmas tags do compose.yaml e NÃO são
+# publicadas. Para usar outra pasta (ex.: worktrees), defina NEXFLEET_REPOS_DIR.
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+services:
+  identidade:
+    build: { context: "${NEXFLEET_REPOS_DIR:-..}/nexfleet-identidade" }
+  frota:
+    build: { context: "${NEXFLEET_REPOS_DIR:-..}/nexfleet-frota" }
+  operacoes:
+    build: { context: "${NEXFLEET_REPOS_DIR:-..}/nexfleet-operacoes" }
+  indicadores:
+    build: { context: "${NEXFLEET_REPOS_DIR:-..}/nexfleet-indicadores" }
+  bff:
+    build: { context: "${NEXFLEET_REPOS_DIR:-..}/nexfleet-bff" }
+  gateway:
+    build: { context: "${NEXFLEET_REPOS_DIR:-..}/nexfleet-gateway" }
+  function:
+    build: { context: "${NEXFLEET_REPOS_DIR:-..}/nexfleet-function" }
