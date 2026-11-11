@@ -27,7 +27,7 @@ param databaseCredentials object
 @description('Connection string do MongoDB Atlas da Frota.')
 param mongodbUri string
 
-@description('URL HTTPS da Function calcular-eficiencia chamada pelo BFF.')
+@description('URL base HTTPS da Function (https://<host>, sem caminho); o BFF acrescenta /api/calcular-eficiencia.')
 param eficienciaFunctionUrl string
 
 @secure()

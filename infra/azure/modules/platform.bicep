@@ -748,7 +748,7 @@ module workloads './workloads.bicep' = if (workloadsEnabled) {
     sqlJdbcUrl: sqlJdbcUrl
     databaseCredentials: serviceDatabaseCredentials
     mongodbUri: mongodbUri
-    eficienciaFunctionUrl: 'https://${functionApp.properties.defaultHostName}/api/calcular-eficiencia'
+    eficienciaFunctionUrl: 'https://${functionApp.properties.defaultHostName}'
     eficienciaFunctionKey: eficienciaFunctionKey
     jwtPrivateKey: jwtPrivateKey
     serviceBusNamespace: '${serviceBus.name}.servicebus.windows.net'
