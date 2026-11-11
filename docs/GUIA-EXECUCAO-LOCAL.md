@@ -58,6 +58,8 @@ Contra outro ambiente: `NEXFLEET_API=https://<gateway> NEXFLEET_EMAIL=... NEXFLE
 
 Abastecimentos exigem vínculo vigente no instante informado, e o vínculo começa no momento da criação; por isso os abastecimentos do seed têm o instante atual.
 
+**macOS:** o `seed-demo.sh` usa `date -d`, que só existe no `date` do GNU. Instale o `coreutils` (`brew install coreutils`) e ponha o `gnubin` dele à frente no `PATH` antes de rodar o script; o `date` nativo do macOS falha com "illegal option".
+
 ## 5. Endereços
 
 | Endereço | Uso |

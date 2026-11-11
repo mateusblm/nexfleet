@@ -10,6 +10,8 @@ Este guia explica, em linguagem direta:
 
 Os detalhes de cada assunto estão nos guias específicos, citados ao longo do texto.
 
+> **v1.0.0 (11/11/2026):** a Frota usa MongoDB e os demais serviços usam um banco SQL Server/Azure SQL com um schema por serviço (ADRs 0039 e 0040); o código está em nove repositórios (ADR 0042). As seções 4 e 5 foram atualizadas para isso. Onde o texto ainda citar PostgreSQL, Prometheus ou scripts PowerShell de execução local, ele descreve a v0.30.0.
+
 ---
 
 ## 1. O que é o NexFleet
@@ -46,7 +48,8 @@ Shell web + 3 microfrontends (Frota, Operações, Painel)
    ▼
 API Gateway  ──►  BFF  ──►  Identidade │ Frota │ Operações │ Indicadores
                                 │          │         │            │
-                             PostgreSQL PostgreSQL PostgreSQL  PostgreSQL
+                            Azure SQL   MongoDB   Azure SQL   Azure SQL
+                            (schema)              (schema)    (schema)
                                                    │
                                      outbox → broker de eventos
                                                    │
@@ -66,6 +69,7 @@ API Gateway  ──►  BFF  ──►  Identidade │ Frota │ Operações │
 | **Indicadores** | Calcula o painel a partir dos eventos. | O departamento de relatórios. |
 | **Broker de eventos** | Entrega os avisos "algo aconteceu" para quem tem interesse. É o RabbitMQ no computador local e o Service Bus na Azure. | Os Correios internos. |
 | **Função serverless** | Ao receber um evento de abastecimento, envia o aviso por e-mail. | O mensageiro que só trabalha quando há carta. |
+| **Função de eficiência** | Chamada pelo BFF em `/aggregated-data`, calcula consumo médio e custo por km por veículo e da frota, sem guardar nada. | A calculadora do contador. |
 
 **Cada serviço tem o próprio banco.** Frota não lê o banco de Operações e vice-versa. Quando um serviço precisa de um dado de outro, ele pergunta pela API ou recebe um evento. Isso permite publicar e evoluir cada parte separadamente.
 
@@ -140,7 +144,7 @@ O que **não** é público, por segurança:
 
 **Cuidados:**
 
-- **Primeiro acesso lento:** Identidade, Frota e BFF desligam quando ficam sem uso, para economizar. O primeiro login depois de um tempo pode levar de 20 a 30 segundos, ou falhar uma vez. Basta tentar de novo. Antes de uma apresentação, abra o site alguns minutos antes.
+- **Primeiro acesso lento:** na v1.0.0, todos os serviços desligam quando ficam sem uso e o banco pausa, para economizar. O primeiro login depois de um tempo pode levar de 1 a 2 minutos, ou falhar com 503/504. Basta tentar de novo. Antes de uma apresentação, aqueça o ambiente (`scripts/smoke-publico.sh` faz isso). Se um cadastro der 503 nesse período, confira a lista antes de repetir: ele pode ter sido gravado (ADR 0044).
 - **Sessão:** o token fica só na memória do navegador. Recarregar a página (F5) pede login de novo. Isso é intencional, por segurança.
 - **Custo:** o ambiente cobra por hora enquanto existir.
 
@@ -173,105 +177,64 @@ Erros comuns e seus significados:
 
 ## 4. Executar o projeto no computador
 
-O passo a passo completo, com solução de problemas, está no [guia de execução local](GUIA-EXECUCAO-LOCAL.md) (Windows) e no [guia para macOS](GUIA-EXECUCAO-MACOS.md). O resumo:
+O passo a passo completo, com solução de problemas, está no [guia de execução local](GUIA-EXECUCAO-LOCAL.md). Os comandos são em `bash` (Linux, macOS ou WSL), a partir do repositório guarda-chuva `nexfleet`. O resumo:
 
-**Pré-requisitos:** Docker Desktop iniciado e PowerShell. Node.js e Java não precisam ser instalados: o projeto baixa cópias portáteis.
+**Pré-requisitos:** Docker com Compose v2, `bash`, `curl`, `jq`, `openssl` e `git`; Node.js 24 para as telas.
 
-```powershell
-# Na pasta do projeto (sem acentos no caminho, de preferência)
-Set-ExecutionPolicy -Scope Process Bypass
-
-# 1. Primeira vez: baixar dependências (Node, JDK, npm, Maven, imagens)
-./scripts/Install-Dependencies.ps1
-
-# 2. Primeira vez: criar .env.sprint0 e a chave JWT
-./scripts/Initialize-Local.ps1
-#    Abra .env.sprint0 e troque LOCAL_USER_PASSWORD por uma senha forte.
-
-# 3. Subir backend, bancos, RabbitMQ, Function e Prometheus
-./scripts/Start-Local.ps1 -ProvisionUser   # na primeira vez (cria o usuário)
-./scripts/Start-Local.ps1 -NoBuild         # nas vezes seguintes
+```bash
+scripts/iniciar-local.sh     # 1ª vez: .env com senhas aleatórias + chave RSA da Identidade
+docker compose up -d         # imagens mateusblm/nexfleet-* do Docker Hub, SQL Server, MongoDB, RabbitMQ
+scripts/seed-demo.sh         # dados de demonstração (usa date do GNU; no macOS, coreutils)
 ```
 
-Depois, abra **quatro terminais**. Em cada um, rode `. .\scripts\Use-Local-Toolchain.ps1` e então:
+Para compilar a partir do código: `scripts/clonar-tudo.sh` e `docker compose -f compose.yaml -f compose.build.yaml up -d --build`.
 
-| Terminal | Comando | Porta |
-|---|---|---:|
-| Shell | `cd frontend; npm.cmd run dev` | 5173 |
-| Frota | `cd microfrontends/frota; npm.cmd run dev` | 5174 |
-| Operações | `cd microfrontends/operacoes; npm.cmd run dev` | 5175 |
-| Painel | `cd microfrontends/painel; npm.cmd run dev` | 5176 |
-
-Acesse **http://127.0.0.1:5173** e entre com `LOCAL_USER_EMAIL` e `LOCAL_USER_PASSWORD` do `.env.sprint0`.
+As telas ficam no repositório `nexfleet-frontend`, um terminal por pasta (`npm ci` na primeira vez, depois `npm run dev`): `frontend` (5173), `microfrontends/frota` (5174), `microfrontends/operacoes` (5175) e `microfrontends/painel` (5176). Acesse **http://127.0.0.1:5173** e entre com `LOCAL_USER_EMAIL` e `LOCAL_USER_PASSWORD` do `.env`.
 
 | Endereço local | O que é |
 |---|---|
 | http://127.0.0.1:5173 | Sistema (shell) |
-| http://127.0.0.1:8080 | API Gateway |
+| http://127.0.0.1:8080 | API Gateway (`/swagger-ui.html`, `/aggregated-data`) |
 | http://127.0.0.1:15672 | Painel do RabbitMQ |
-| http://127.0.0.1:9090 | Prometheus |
 
-Para parar, use `Ctrl+C` nos quatro terminais e depois `./scripts/Stop-Local.ps1`. Os dados são preservados. **Nunca** use `docker compose down -v`: esse comando apaga todos os dados locais.
+Para parar: `docker compose down` (dados preservados). `docker compose down -v` apaga todos os dados locais.
 
-Para rodar todos os testes: `./scripts/Test-Project.ps1`.
-
-O ambiente local funciona só no seu computador: todas as portas ficam em `127.0.0.1`. Para outra pessoa usar, ela precisa instalar o projeto na máquina dela, ou usar a versão na nuvem.
+O ambiente local funciona só no seu computador: todas as portas ficam em `127.0.0.1`.
 
 ---
 
 ## 5. Acessar os bancos de dados
 
-Há **cinco bancos PostgreSQL**, um por serviço: `identidade`, `frota`, `operacoes`, `indicadores` e `notificacoes`. Cada um tem um schema com o mesmo nome.
+| Serviço | Onde | Tabelas ou coleções |
+|---|---|---|
+| Identidade | SQL Server/Azure SQL, schema `identidade` | `usuario` |
+| Frota | MongoDB, banco `frota` | `veiculos`, `motoristas`, `vinculos` |
+| Operações | SQL Server/Azure SQL, schema `operacoes` | `abastecimento`, `manutencao`, `hodometro`, `outbox_evento` |
+| Indicadores | SQL Server/Azure SQL, schema `indicadores` | `abastecimento_projecao`, `manutencao_projecao` (com o `evento_id` que garante a idempotência) |
+| Notificações | SQL Server/Azure SQL, schema `notificacoes` | `email_capturado` (notificações e status de envio) |
 
-| Banco | Tabelas principais |
-|---|---|
-| identidade | `usuario` |
-| frota | `veiculo`, `motorista`, `veiculo_motorista` (vínculos) |
-| operacoes | `abastecimento`, `manutencao`, `hodometro`, `outbox_evento` |
-| indicadores | `abastecimento_projecao`, `manutencao_projecao` (projeções do painel, com o `eventId` que garante a idempotência) |
-| notificacoes | `email_capturado` (notificações e status de envio) |
+Cada serviço entra no SQL com um usuário que tem o **nome do schema** e não enxerga os outros schemas (ADR 0040).
 
 **Regra de ouro:** use o banco para **consultar**. Cadastros e alterações devem ser feitos pelo sistema. Uma alteração direta pula validações, autorização, outbox e eventos, e deixa os dados inconsistentes.
 
 ### 5.1 Banco local
 
-Pelo terminal, com o backend em execução:
-
-```powershell
-docker exec -it nexfleet-sprint0-frota-db-1 psql -U frota -d frota
+```bash
+set -a; . ./.env; set +a
+# SQL Server, com o usuário de Operações
+docker compose exec -e PW="$OPERACOES_DB_PASSWORD" sqlserver bash -c \
+  '/opt/mssql-tools18/bin/sqlcmd -S localhost -d nexfleet -U operacoes -P "$PW" -C -W \
+   -Q "SELECT TOP 10 realizado_em, combustivel, litros, valor_total FROM operacoes.abastecimento ORDER BY realizado_em DESC"'
+# MongoDB da Frota
+docker compose exec mongodb mongosh -u "$MONGO_ROOT_USER" -p "$MONGO_ROOT_PASSWORD" --quiet \
+  --eval 'db.getSiblingDB("frota").veiculos.find({}, {placa: 1, status: 1}).limit(10).toArray()'
 ```
 
-Dentro do `psql`:
-
-```sql
-SET search_path TO frota;
-\dt                                   -- lista as tabelas
-SELECT placa, marca, status, quilometragem FROM veiculo ORDER BY criado_em DESC;
-\q                                    -- sai
-```
-
-Os outros bancos seguem o mesmo padrão, trocando `frota` pelo nome do banco (`identidade`, `operacoes`, `indicadores` ou `notificacoes`).
-
-Pelo pgAdmin ou DBeaver: suba também o arquivo `compose.db-access.yaml` e conecte em `127.0.0.1`, nas portas 15432 a 15436, com as senhas do `.env.sprint0`. A tabela completa está no [guia de execução local, seção 9.3](GUIA-EXECUCAO-LOCAL.md).
+Por ferramenta gráfica (Azure Data Studio, DBeaver, MongoDB Compass), use `127.0.0.1` nas portas `SQLSERVER_PORT` e `MONGO_PORT` do `.env` ([guia de execução local, seções 5 e 6](GUIA-EXECUCAO-LOCAL.md)).
 
 ### 5.2 Banco na Azure
 
-O PostgreSQL da nuvem **não tem acesso público**: ele só aceita conexões de dentro da rede privada da Azure. Por isso o pgAdmin do seu computador não conecta, e isso é intencional, porque é o que protege os dados.
-
-Para consultar, use o script abaixo. Ele executa a SQL **dentro da rede privada**, com o usuário do próprio banco (nunca o administrador), e em **modo somente leitura**: `INSERT`, `UPDATE`, `DELETE` e alterações de estrutura são recusados pelo PostgreSQL.
-
-```powershell
-./scripts/Invoke-AzureDatabaseQuery.ps1 -Database frota `
-  -Sql "SELECT placa, marca, status, quilometragem FROM frota.veiculo ORDER BY criado_em"
-
-./scripts/Invoke-AzureDatabaseQuery.ps1 -Database operacoes `
-  -Sql "SELECT realizado_em, combustivel, litros, valor_total, quilometragem FROM operacoes.abastecimento ORDER BY realizado_em DESC LIMIT 10"
-
-./scripts/Invoke-AzureDatabaseQuery.ps1 -Database notificacoes `
-  -Sql "SELECT solicitado_em, status, provedor FROM notificacoes.email_capturado ORDER BY solicitado_em DESC LIMIT 10"
-```
-
-O resultado leva de 1 a 3 minutos para chegar, porque a consulta roda como um job na nuvem e a saída é lida no Log Analytics. O script exige o Azure CLI com login na assinatura (`az login`) e o perfil `infra/azure/preflight-profile.json`.
+O Azure SQL tem endpoint público com TLS, mas o firewall só aceita os serviços da Azure e o IP do administrador. Os comandos com `sqlcmd` (liberar o IP, consultar, alterar contas) estão no [guia de administração, seção 3A](GUIA-ADMINISTRACAO-AZURE.md#3a-banco-na-v100-azure-sql-com-sqlcmd). Os dados da Frota ficam no MongoDB Atlas e são consultados pela API ou pelo painel do Atlas.
 
 ---
 

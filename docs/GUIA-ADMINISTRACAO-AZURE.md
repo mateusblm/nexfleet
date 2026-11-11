@@ -9,6 +9,8 @@ Copie cada bloco **inteiro** no terminal e troque apenas o que estiver indicado 
 > - Rode sempre a consulta de conferência (somente leitura) antes de alterar ou apagar.
 > - Nunca rode `UPDATE` ou `DELETE` sem `WHERE`: isso afetaria **todos** os usuários.
 
+> **v1.0.0 (11/11/2026):** o banco da Azure passou a ser um **Azure SQL** com endpoint público (TLS 1.2 e firewall), com um schema e um usuário por serviço (ADR 0040). O script `Invoke-AzureDatabaseQuery.ps1`, o job `job-nexfleet-db-verify` e o `.clixml` do Administrador eram da v0.30.0 (PostgreSQL privado) e **foram removidos**. Os blocos PowerShell das seções 1 e 3 a 7 ficam como registro histórico; os comandos válidos estão na [seção 3A](#3a-banco-na-v100-azure-sql-com-sqlcmd). Para criar o primeiro usuário na nuvem, veja o [guia de infraestrutura, seção 8.7](GUIA-INFRAESTRUTURA-AZURE-BICEP.md#87-usuário-inicial).
+
 ## Índice
 
 | # | Tarefa | Altera dados? |
@@ -16,6 +18,7 @@ Copie cada bloco **inteiro** no terminal e troque apenas o que estiver indicado 
 | 0 | [Preparar o terminal](#0-preparar-o-terminal) | Não |
 | 1 | [Ver a senha do Administrador principal](#1-ver-a-senha-do-administrador-principal) | Não |
 | 2 | [Verificar se um e-mail e uma senha estão corretos](#2-verificar-se-um-e-mail-e-uma-senha-estão-corretos) | Não |
+| 3A | [Banco na v1.0.0: Azure SQL com `sqlcmd`](#3a-banco-na-v100-azure-sql-com-sqlcmd) | Depende do comando |
 | 3 | [Listar as contas cadastradas](#3-listar-as-contas-cadastradas) | Não |
 | 4 | [Alterar a senha de uma conta](#4-alterar-a-senha-de-uma-conta) | **Sim** |
 | 5 | [Desativar ou reativar uma conta](#5-desativar-ou-reativar-uma-conta) | **Sim** |
@@ -45,17 +48,13 @@ az account show -o table      # se der erro, rode: az login
 | Arquivo `infra/azure/preflight-profile.json` (só existe no seu PC) | 3 a 7 |
 | Arquivo `.secrets/azure-homolog-admin.clixml` (só existe no seu PC) | 1 |
 
-**Como funcionam as seções 3 a 7.** O banco da Azure é **privado**: não aceita conexão do seu PC nem do Portal. O script `scripts/Invoke-AzureDatabaseQuery.ps1` contorna isso assim:
-
-1. Executa o seu SQL **dentro da rede da Azure**, por meio do job `job-nexfleet-db-verify`.
-2. Usa o usuário do próprio banco, sem nenhum privilégio de administrador.
-3. Devolve o resultado em **1 a 3 minutos**.
-
-O script só lê dados. Alterações exigem a opção `-PermitirEscrita` e a confirmação `CONFIRMAR`.
+**Seções 3 a 7 (legado v0.30.0).** Elas usavam `scripts/Invoke-AzureDatabaseQuery.ps1`, que executava o SQL dentro da VNet por um job, porque o PostgreSQL era privado. O script e o job foram removidos na v1.0.0; use a seção 3A.
 
 ---
 
 ## 1. Ver a senha do Administrador principal
+
+> **Legado (v0.30.0):** o `.clixml` era gravado pelo job `bootstrap-admin.sh`, que não existe na v1.0.0. Na v1.0.0, o primeiro usuário é inserido pelo administrador SQL e as credenciais ficam fora do Git, em arquivo do próprio responsável.
 
 A senha criada no deploy fica em `.secrets/azure-homolog-admin.clixml`, **criptografada pelo Windows (DPAPI)**. Só o seu usuário, neste PC, consegue abrir.
 
@@ -99,6 +98,42 @@ Para conferir a senha do **Administrador principal** guardada no `.clixml`, troq
 ```powershell
 $s = Import-Clixml .secrets\azure-homolog-admin.clixml; $email = $s.email; $senha = $s.password
 ```
+
+---
+
+## 3A. Banco na v1.0.0: Azure SQL com `sqlcmd`
+
+O Azure SQL aceita conexão de fora da Azure somente do IP liberado no firewall (parâmetro `administratorIpAddress` do Bicep ou o comando abaixo) e somente com TLS. Use o administrador do servidor; a senha é digitada, não fica no histórico.
+
+```bash
+RG=rg-nexfleet-homolog
+SQL_SERVER=$(az sql server list -g "$RG" --query '[0].name' -o tsv)
+MEU_IP=$(curl -s https://api.ipify.org)
+az sql server firewall-rule create -g "$RG" -s "$SQL_SERVER" -n AllowAdministratorIp \
+  --start-ip-address "$MEU_IP" --end-ip-address "$MEU_IP" -o none
+read -rp 'Login do administrador SQL: ' SQL_ADMIN
+read -rsp 'Senha do administrador SQL: ' SQLCMDPASSWORD; echo; export SQLCMDPASSWORD
+nxsql() { sqlcmd -S "$SQL_SERVER.database.windows.net" -d nexfleet -U "$SQL_ADMIN" -b -W -Q "$1"; }
+```
+
+O banco pode estar pausado: a primeira conexão leva até ~1 min. Em T-SQL, `ativo` é `BIT` (`1`/`0`) e não existe `RETURNING`; use `OUTPUT inserted.<coluna>` ou `OUTPUT deleted.<coluna>`.
+
+| Tarefa | Comando |
+|---|---|
+| Listar contas (seção 3) | `nxsql "SELECT email, perfil, ativo FROM identidade.usuario ORDER BY perfil, email"` |
+| Trocar senha (seção 4) | gere o hash como no [guia de infraestrutura, 8.7](GUIA-INFRAESTRUTURA-AZURE-BICEP.md#87-usuário-inicial) e rode `nxsql "UPDATE identidade.usuario SET senha_hash = '$HASH' OUTPUT inserted.email WHERE email = N'TROQUE@exemplo.com'"` |
+| Desativar (seção 5) | `nxsql "UPDATE identidade.usuario SET ativo = 0 OUTPUT inserted.email, inserted.ativo WHERE email = N'TROQUE@exemplo.com'"` (reativar: `ativo = 1`) |
+| Alterar perfil (seção 6) | `nxsql "UPDATE identidade.usuario SET perfil = 'GESTOR_FROTA' OUTPUT inserted.email, inserted.perfil WHERE email = N'TROQUE@exemplo.com'"` |
+| Apagar conta (seção 7) | prefira a tela **Usuários**; senão `nxsql "DELETE FROM identidade.usuario OUTPUT deleted.email WHERE email = N'TROQUE@exemplo.com'"` |
+
+Rode sempre a listagem antes de alterar. Ao terminar, remova a regra de firewall (a não ser que o IP esteja no parâmetro do Bicep) e limpe a senha:
+
+```bash
+az sql server firewall-rule delete -g "$RG" -s "$SQL_SERVER" -n AllowAdministratorIp
+unset SQLCMDPASSWORD
+```
+
+Os dados da **Frota** (veículos, motoristas, vínculos) ficam no MongoDB Atlas e são consultados pela própria API ou pelo painel do Atlas.
 
 ---
 
@@ -246,7 +281,7 @@ No `LIKE`, o `%` significa "qualquer texto". A condição `perfil = 'GESTOR_FROT
 
 ## 8. Acordar os serviços e verificar o ambiente
 
-No modo econômico, **Identidade**, **Frota** e **BFF** dormem depois de alguns minutos sem uso. O primeiro acesso leva de 30 a 60 s, e enquanto isso o login falha. O bloco abaixo chama o diagnóstico até os 4 serviços responderem:
+Na v1.0.0, todos os Container Apps dormem depois de alguns minutos sem uso, e o Azure SQL pausa. O primeiro acesso pode levar de 1 a 2 min, e enquanto isso o login falha com 502/503/504. O bloco abaixo chama o diagnóstico até os 4 serviços responderem:
 
 ```powershell
 $api = 'https://apim-nexfleet-homolog-ukzjodf42myfe.azure-api.net'
@@ -271,7 +306,7 @@ O mesmo resultado aparece no site, no botão **Verificar ambiente**. Rode este b
 
 | Mínimo de réplicas | Comportamento | Custo |
 |---|---|---|
-| `0` (padrão para Identidade, Frota e BFF) | Dorme sem uso e acorda no primeiro acesso | Menor |
+| `0` (padrão de todos os serviços na v1.0.0) | Dorme sem uso e acorda no primeiro acesso | Menor |
 | `1` | Sempre ligado, login sempre rápido | Maior: cobra 24 h por dia |
 
 **Sempre acordados** (por exemplo, no dia da apresentação):
@@ -298,7 +333,7 @@ foreach ($app in 'identidade','frota','bff') {
 2. Abra o Container App do serviço, por exemplo `ca-identidade-nexfleet-homolog`.
 3. Vá em **Aplicativo → Escala**, ajuste o campo **Mínimo de réplicas** e clique em **Salvar**.
 
-> **Não** coloque `0` em Gateway, Operações ou Indicadores: Indicadores precisa ficar ligado para receber os eventos e atualizar o painel. Um novo `Deploy-AzureFoundation.ps1` volta tudo aos valores do Bicep.
+> Na v1.0.0 todos os Container Apps têm `minReplicas: 0`; Indicadores acorda sozinho quando chega evento no Service Bus (regra KEDA). A partida a frio completa leva ~1 a 2 min (ADR 0044): aqueça antes de uma apresentação com a seção 8 ou com `scripts/smoke-publico.sh`. Um novo deploy do Bicep volta tudo aos valores do template.
 
 ---
 
@@ -308,7 +343,7 @@ foreach ($app in 'identidade','frota','bff') {
 |---|---|---|
 | Site: "Não foi possível acessar o serviço de identidade" | Identidade dormindo | Seção 8, depois tente de novo |
 | Site: "E-mail, senha ou sessão inválidos" | Senha errada ou conta desativada | Seções 2 e 3 |
-| Site: "Confira sua conexão" em `127.0.0.1` | Ambiente **local** desligado: o Docker não está rodando | Use o endereço da Azure ou `./scripts/Start-Local.ps1 -NoBuild` |
+| Site: "Confira sua conexão" em `127.0.0.1` | Ambiente **local** desligado: o Docker não está rodando | Use o endereço da Azure ou suba o ambiente local com `docker compose up -d` (guia de execução local) |
 | `ConnectionResetError 10054` no terminal | Instabilidade de rede | Rode o comando de novo; os scripts já repetem sozinhos |
 | `az: comando não encontrado` | Azure CLI fora do PATH | Use `& 'C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd'` |
 | `AADSTS...` ou "Please run az login" | Sessão da Azure expirada | `az login` |
