@@ -33,11 +33,12 @@ req() {
   [[ $# -ge 1 ]] && args+=(-H 'Content-Type: application/json' --data "$1")
   # Os Container Apps escalam a zero e o Azure SQL serverless pausa: a primeira chamada depois de
   # um tempo parado pode voltar 502/503/504 enquanto a réplica sobe e o banco retoma (~1 min).
-  # Só GET repete: um POST que estoura o tempo no Gateway pode ter sido gravado mesmo assim.
+  # Só GET e login repetem: um POST de escrita que estoura o tempo no Gateway pode ter sido
+  # gravado mesmo assim; o login não grava nada.
   local tentativa
   for tentativa in 1 2 3 4 5 6 7 8; do
     s=$(curl "${args[@]}" 2>>"$EVID/curl.err") || s=000
-    [[ "$metodo" == GET && "$s" =~ ^(000|502|503|504)$ ]] || return 0
+    [[ ( "$metodo" == GET || "$nome" == login ) && "$s" =~ ^(000|502|503|504)$ ]] || return 0
     echo "      $nome: HTTP $s na tentativa $tentativa (partida a frio?), repetindo em 15 s" | tee -a "$resumo"
     sleep 15
   done
