@@ -305,6 +305,16 @@ var legacyPostgresqlSubnet = {
   name: 'postgresql'
   properties: {
     addressPrefix: '10.42.2.0/24'
+    // Criado pelo PostgreSQL na homologação; declarado para o deploy não removê-lo.
+    serviceEndpoints: [
+      {
+        service: 'Microsoft.Storage'
+        locations: [
+          'centralus'
+          'eastus2'
+        ]
+      }
+    ]
     delegations: [
       {
         name: 'postgresql-delegation'
@@ -529,6 +539,20 @@ resource indicadoresServiceBusReceiverRole 'Microsoft.Authorization/roleAssignme
   }
 }
 
+// O escalador KEDA lê a contagem de mensagens pelas propriedades de runtime da assinatura,
+// o que exige Data Owner; o escopo fica restrito à assinatura indicadores-v1.
+var serviceBusDataOwnerRoleId = '090c5cfd-751d-490a-894a-3ce6f1109419'
+
+resource indicadoresServiceBusScalerRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(indicadoresSubscription.id, workloadIdentities[5].id, serviceBusDataOwnerRoleId)
+  scope: indicadoresSubscription
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', serviceBusDataOwnerRoleId)
+    principalId: workloadIdentities[5].properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource functionServiceBusReceiverRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(serviceBus.id, functionIdentity.id, serviceBusDataReceiverRoleId)
   scope: serviceBus
@@ -728,6 +752,7 @@ module workloads './workloads.bicep' = if (workloadsEnabled) {
     eficienciaFunctionKey: eficienciaFunctionKey
     jwtPrivateKey: jwtPrivateKey
     serviceBusNamespace: '${serviceBus.name}.servicebus.windows.net'
+    serviceBusName: serviceBus.name
     workloadProfile: workloadProfile
     identities: {
       gateway: {
@@ -760,6 +785,7 @@ module workloads './workloads.bicep' = if (workloadsEnabled) {
     sqlAllowAzureServices
     operacoesServiceBusSenderRole
     indicadoresServiceBusReceiverRole
+    indicadoresServiceBusScalerRole
   ]
 }
 

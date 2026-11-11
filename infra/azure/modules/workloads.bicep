@@ -41,6 +41,9 @@ param jwtPrivateKey string
 @description('FQDN do Service Bus sem protocolo.')
 param serviceBusNamespace string
 
+@description('Nome curto do namespace Service Bus, usado pela regra KEDA do Indicadores.')
+param serviceBusName string
+
 @description('Identidades gerenciadas, uma para cada serviço.')
 param identities object
 
@@ -178,7 +181,24 @@ module indicadores './container-app.bicep' = {
     identityResourceId: identities.indicadores.id
     // Sem custo fixo: todos escalam a zero, inclusive no perfil de carga.
     minReplicas: 0
-    maxReplicas: sizing.maxReplicas
+    // Consumidor único da assinatura; a regra KEDA abaixo o acorda quando chegam eventos.
+    maxReplicas: 1
+    extraScaleRules: [
+      {
+        name: 'servicebus-indicadores'
+        custom: {
+          type: 'azure-servicebus'
+          metadata: {
+            namespace: serviceBusName
+            topicName: 'nexfleet-eventos-v1'
+            subscriptionName: 'indicadores-v1'
+            messageCount: '5'
+          }
+          // KEDA autentica com a identidade gerenciada do próprio app, sem connection string.
+          identity: identities.indicadores.id
+        }
+      }
+    ]
     cpu: sizing.cpu
     memory: sizing.memory
     secrets: {

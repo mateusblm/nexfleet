@@ -33,6 +33,9 @@ param cpu string = '0.5'
 @description('Memória do contêiner, compatível com a vCPU (1Gi para 0.5; 2Gi para 1.0).')
 param memory string = '1Gi'
 
+@description('Regras de escala adicionais (por exemplo KEDA azure-servicebus), somadas à regra HTTP.')
+param extraScaleRules array = []
+
 @description('Variáveis não sigilosas do contêiner.')
 param environmentVariables array = []
 
@@ -113,7 +116,7 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
       scale: {
         minReplicas: minReplicas
         maxReplicas: maxReplicas
-        rules: [
+        rules: concat([
           {
             name: 'http-concurrency'
             http: {
@@ -122,7 +125,7 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
               }
             }
           }
-        ]
+        ], extraScaleRules)
       }
       volumes: volumes
     }
