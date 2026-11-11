@@ -1,5 +1,7 @@
 # Guia de estrutura e arquitetura do NexFleet
 
+> **Legado (v0.30.0).** Este guia descreve o monorepo (`services/`, `frontend/`, `microfrontends/`, `functions/`) e os bancos PostgreSQL. Na v1.0.0, cada componente está em um repositório próprio em `github.com/mateusblm` (ADR 0042), a Frota usa MongoDB e os demais serviços usam Azure SQL com um schema por serviço (ADRs 0039 e 0040). A estrutura atual está no [README](../README.md#estrutura) e os diagramas em [DIAGRAMAS-ARQUITETURA.md](DIAGRAMAS-ARQUITETURA.md). A organização interna de cada serviço (fatias com `api/`, `application/`, `domain/` e `infrastructure/`) continua a mesma.
+
 Este documento explica como o repositório NexFleet está organizado, qual é a responsabilidade de cada pasta e como uma ação feita no navegador percorre o sistema até chegar ao banco de dados.
 
 ## 1. Ideia central

@@ -1,5 +1,7 @@
 # Guia de segurança e acesso aos bancos (local e Azure)
 
+> **Legado (v0.30.0).** Este guia descreve os cinco PostgreSQL locais do `compose.sprint0.yaml` e o PostgreSQL privado da Azure, acessado por `scripts/Invoke-AzureDatabaseQuery.ps1`. Nada disso existe na v1.0.0: o Compose, o `.env.sprint0` e o script foram removidos. Na v1.0.0, a Frota usa MongoDB e os demais serviços usam um SQL Server/Azure SQL com um schema e um usuário por serviço (ADRs 0039 e 0040). Para o ambiente local, veja o [guia de execução local, seção 6](GUIA-EXECUCAO-LOCAL.md#6-banco-sql-server-schema-e-usuário-por-serviço); para a Azure, o [guia de administração, seção 3A](GUIA-ADMINISTRACAO-AZURE.md#3a-banco-na-v100-azure-sql-com-sqlcmd). O texto abaixo fica como registro histórico.
+
 ## Objetivo
 
 Este guia cobre dois ambientes:

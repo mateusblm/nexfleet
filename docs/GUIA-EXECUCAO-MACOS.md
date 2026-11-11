@@ -1,5 +1,7 @@
 # Guia de execução do NexFleet no macOS
 
+> **Legado (v0.30.0).** Este guia usa `compose.sprint0.yaml`, `compose.jwt-rsa.yaml`, `.env.sprint0` e scripts PowerShell do monorepo, removidos na v1.0.0. No macOS, siga o [guia de execução local](GUIA-EXECUCAO-LOCAL.md), que é em `bash` e vale para Linux, macOS e WSL. Única diferença: o `scripts/seed-demo.sh` usa `date -d` (GNU); instale o `coreutils` (`brew install coreutils`) e ponha o `gnubin` dele no `PATH`. O texto abaixo fica como registro histórico.
+
 Este guia executa o mesmo ambiente local do Windows: backend e bancos em contêineres Docker, com shell e três microfrontends React executados pelo Node.js no Mac.
 
 ## 1. O que muda no MacBook
