@@ -112,14 +112,16 @@ class ContractFilesTest {
     validateLocalReferences(document, document, file.getFileName().toString());
 
     Map<String, Object> channels = map(document, "channels");
-    assertEquals(Set.of("abastecimentoRegistrado", "manutencaoRegistrada"), channels.keySet());
+    assertEquals(Set.of("abastecimentoRegistrado", "manutencaoRegistrada",
+        "abastecimentoAtualizado", "abastecimentoExcluido", "manutencaoAtualizada",
+        "manutencaoExcluida"), channels.keySet());
     assertEquals("operacoes.abastecimento.registrado.v1",
         string(castMap(channels.get("abastecimentoRegistrado"), "canal abastecimento"), "address"));
     assertEquals("operacoes.manutencao.registrada.v1",
         string(castMap(channels.get("manutencaoRegistrada"), "canal manutenção"), "address"));
 
     Map<String, Object> operations = map(document, "operations");
-    assertEquals(2, operations.size());
+    assertEquals(6, operations.size());
     operations.forEach((name, value) ->
         assertEquals("send", string(castMap(value, "operação " + name), "action")));
 
@@ -129,6 +131,14 @@ class ContractFilesTest {
         "veiculoId", "motoristaId", "correlationId");
     assertRequired(schemas, "ManutencaoRegistrada", "eventoId", "manutencaoId",
         "veiculoId", "correlationId");
+    assertRequired(schemas, "AbastecimentoAtualizado", "eventoId", "abastecimentoId",
+        "veiculoId", "versao", "atualizadoPor", "correlationId");
+    assertRequired(schemas, "ManutencaoAtualizada", "eventoId", "manutencaoId",
+        "veiculoId", "versao", "atualizadoPor", "correlationId");
+    assertRequired(schemas, "AbastecimentoExcluido", "eventoId", "abastecimentoId",
+        "veiculoId", "versao", "excluidoPor", "excluidoEm", "correlationId");
+    assertRequired(schemas, "ManutencaoExcluida", "eventoId", "manutencaoId",
+        "veiculoId", "versao", "excluidoPor", "excluidoEm", "correlationId");
   }
 
   private void validateResponses(
