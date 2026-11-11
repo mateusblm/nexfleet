@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NexFleet — Manutenções
-  version: 1.0.0
+  version: 1.1.0
 paths:
   /api/v1/manutencoes:
     get:
@@ -23,7 +23,7 @@ paths:
         '503': { description: Serviço indisponível }
     post:
       operationId: registrarManutencao
-      summary: Registra uma manutenção imutável
+      summary: Registra uma manutenção
       requestBody:
         required: true
         content:
@@ -41,7 +41,60 @@ paths:
         '404': { description: Veículo não encontrado }
         '422': { description: Regra de negócio inválida }
         '503': { description: Serviço indisponível }
+  /api/v1/manutencoes/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: consultarManutencao
+      summary: Consulta uma manutenção pelo id
+      responses:
+        '200':
+          description: Manutenção encontrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Manutencao' }
+        '400': { description: Identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { $ref: '#/components/responses/Erro', description: Perfil sem permissão (somente ADMINISTRADOR ou GESTOR_FROTA) }
+        '404': { $ref: '#/components/responses/Erro', description: Manutenção não encontrada }
+        '503': { $ref: '#/components/responses/Erro', description: Operações indisponível ou sem resposta no tempo limite }
+    put:
+      operationId: atualizarManutencao
+      summary: Corrige a manutenção com as regras do cadastro; o veículo não muda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AtualizacaoManutencao' }
+      responses:
+        '200':
+          description: Manutenção atualizada com versao incrementada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Manutencao' }
+        '400': { description: JSON ou identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { $ref: '#/components/responses/Erro', description: Perfil sem permissão (somente ADMINISTRADOR ou GESTOR_FROTA) }
+        '404': { $ref: '#/components/responses/Erro', description: Manutenção não encontrada }
+        '422': { $ref: '#/components/responses/Erro', description: Regra de negócio inválida }
+        '503': { $ref: '#/components/responses/Erro', description: Operações indisponível ou sem resposta no tempo limite }
+    delete:
+      operationId: excluirManutencao
+      summary: Exclui a manutenção definitivamente
+      responses:
+        '204': { description: Manutenção excluída }
+        '400': { description: Identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { $ref: '#/components/responses/Erro', description: Perfil sem permissão (somente ADMINISTRADOR ou GESTOR_FROTA) }
+        '404': { $ref: '#/components/responses/Erro', description: Manutenção não encontrada }
+        '503': { $ref: '#/components/responses/Erro', description: Operações indisponível ou sem resposta no tempo limite }
 components:
+  responses:
+    Erro:
+      description: Erro com mensagem repassada do Operações
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
@@ -57,13 +110,31 @@ components:
         oficina: { type: string, maxLength: 150 }
         valor: { type: number, minimum: 0, multipleOf: 0.01 }
         proximaManutencao: { type: [string, 'null'], format: date }
+    AtualizacaoManutencao:
+      type: object
+      additionalProperties: false
+      required: [tipo, realizadaEm, quilometragem, descricao, oficina, valor]
+      properties:
+        tipo: { type: string, enum: [PREVENTIVA, CORRETIVA, REVISAO, TROCA_OLEO, TROCA_PNEUS, OUTROS] }
+        realizadaEm: { type: string, format: date }
+        quilometragem: { type: integer, format: int64, minimum: 0 }
+        descricao: { type: string, maxLength: 500 }
+        oficina: { type: string, maxLength: 150 }
+        valor: { type: number, minimum: 0, multipleOf: 0.01 }
+        proximaManutencao: { type: [string, 'null'], format: date }
     Manutencao:
       allOf:
         - { $ref: '#/components/schemas/NovaManutencao' }
         - type: object
-          required: [id, criadoEm]
+          required: [id, criadoEm, versao]
           properties:
             id: { type: string, format: uuid }
             criadoEm: { type: string, format: date-time }
+            versao: { type: integer, minimum: 1, description: Incrementada a cada edição; começa em 1 }
+    Erro:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
 security:
   - bearerAuth: []
