@@ -76,27 +76,17 @@ if ($Location -notmatch '^[a-z0-9]+$') {
     throw "Location invalida: $Location"
 }
 
-$postgresFilter = "serviceName eq 'Azure Database for PostgreSQL' and armRegionName eq '$Location'"
 $serviceBusFilter = "serviceName eq 'Service Bus' and armRegionName eq '$Location'"
-$registryFilter = "serviceName eq 'Container Registry' and armRegionName eq '$Location'"
 $containerAppsFilter = "serviceName eq 'Azure Container Apps' and armRegionName eq '$Location'"
 
-$postgresBrl = Get-RetailItems 'BRL' $postgresFilter
 $serviceBusBrl = Get-RetailItems 'BRL' $serviceBusFilter
 $serviceBusUsd = Get-RetailItems 'USD' $serviceBusFilter
-$registryBrl = Get-RetailItems 'BRL' $registryFilter
 $containerAppsUsd = Get-RetailItems 'USD' $containerAppsFilter
 
-$postgresCompute = Find-PaidMeter $postgresBrl `
-    'Azure Database for PostgreSQL Flexible Server Burstable BS Series Compute' 'B1MS' 'B1MS'
-$postgresStorage = Find-PaidMeter $postgresBrl `
-    'Azure Database for PostgreSQL Flex Server Storage' 'Storage' 'Storage Data Stored'
 $serviceBusBaseBrl = Find-PaidMeter $serviceBusBrl `
     'Service Bus' 'Standard' 'Standard Base Unit' '1/Month'
 $serviceBusBaseUsd = Find-PaidMeter $serviceBusUsd `
     'Service Bus' 'Standard' 'Standard Base Unit' '1/Month'
-$registryBasic = Find-PaidMeter $registryBrl `
-    'Container Registry' 'Basic' 'Basic Registry Unit'
 $cpuIdle = Find-PaidMeter $containerAppsUsd `
     'Azure Container Apps' 'Standard' 'Standard vCPU Idle Usage'
 $cpuActive = Find-PaidMeter $containerAppsUsd `
@@ -131,11 +121,10 @@ $billableMemoryGiBSeconds = if ($allocatedMemoryGiBSeconds -gt $freeMemoryGiBSec
 } else { [decimal]0 }
 $brlPerUsd = [decimal]$serviceBusBaseBrl.retailPrice / [decimal]$serviceBusBaseUsd.retailPrice
 
-$postgresComputeMonthly = [decimal]$postgresCompute.retailPrice * $HoursPerMonth
-$postgresStorageMonthly = [decimal]$postgresStorage.retailPrice * 32
+# Azure SQL usa a oferta gratuita com AutoPause ao esgotar o limite: custo fixo zero.
+# Imagens vêm do Docker Hub público: sem Container Registry.
 $serviceBusMonthly = [decimal]$serviceBusBaseBrl.retailPrice
-$registryMonthly = [decimal]$registryBasic.retailPrice * $DaysPerMonth
-$fixedMonthly = $postgresComputeMonthly + $postgresStorageMonthly + $serviceBusMonthly + $registryMonthly
+$fixedMonthly = $serviceBusMonthly
 $containerIdleUsd = ($billableVcpuSeconds * [decimal]$cpuIdle.retailPrice) +
     ($billableMemoryGiBSeconds * [decimal]$memoryIdle.retailPrice)
 $containerActiveUsd = ($billableVcpuSeconds * [decimal]$cpuActive.retailPrice) +
@@ -153,10 +142,9 @@ $report = [ordered]@{
     assumptions = [ordered]@{
         hoursPerMonth = $HoursPerMonth
         daysPerMonth = $DaysPerMonth
-        postgresqlSku = 'Standard_B1ms'
-        postgresqlStorageGiB = 32
+        sqlDatabase = 'GP_S_Gen5_2 serverless, useFreeLimit, AutoPause'
         serviceBusSku = 'Standard'
-        containerRegistrySku = 'Basic'
+        containerImages = 'Docker Hub publico'
         minimumContainerReplicas = $minimumReplicas
         cpuPerReplica = $cpuPerReplica
         memoryGiBPerReplica = $memoryPerReplicaGiB
@@ -164,10 +152,8 @@ $report = [ordered]@{
         creditsOrStudentBenefitsApplied = $false
     }
     monthlyEstimate = [ordered]@{
-        postgresqlCompute = Round-Money $postgresComputeMonthly
-        postgresqlStorage = Round-Money $postgresStorageMonthly
+        sqlDatabaseFreeOffer = [decimal]0
         serviceBusBase = Round-Money $serviceBusMonthly
-        containerRegistryBasic = Round-Money $registryMonthly
         fixedSubtotal = Round-Money $fixedMonthly
         containerAppsAllMinimumReplicasIdle = Round-Money $containerIdleBrl
         containerAppsAllMinimumReplicasActive = Round-Money $containerActiveBrl
@@ -178,7 +164,8 @@ $report = [ordered]@{
     exclusions = @(
         'Log Analytics e Application Insights acima das franquias',
         'API Management, Function, Storage e Key Vault por uso',
-        'Private DNS, transferencia de dados, impostos e variacao cambial',
+        'transferencia de dados, impostos e variacao cambial',
+        'MongoDB Atlas M0 (gratuito, fora da Azure)',
         'replicas adicionais por autoscaling',
         'Azure Communication Services Email',
         'descontos, creditos e beneficios Azure for Students'
@@ -205,12 +192,10 @@ if ($AsJson) {
 }
 
 $rows = @(
-    [pscustomobject]@{ Item = 'PostgreSQL B1ms - computacao'; BRL = Round-Money $postgresComputeMonthly },
-    [pscustomobject]@{ Item = 'PostgreSQL - 32 GiB'; BRL = Round-Money $postgresStorageMonthly },
+    [pscustomobject]@{ Item = 'Azure SQL serverless - oferta gratuita'; BRL = [decimal]0 },
     [pscustomobject]@{ Item = 'Service Bus Standard - base'; BRL = Round-Money $serviceBusMonthly },
-    [pscustomobject]@{ Item = 'Container Registry Basic'; BRL = Round-Money $registryMonthly },
-    [pscustomobject]@{ Item = 'Container Apps - 3 replicas ociosas'; BRL = Round-Money $containerIdleBrl },
-    [pscustomobject]@{ Item = 'Container Apps - 3 replicas ativas'; BRL = Round-Money $containerActiveBrl }
+    [pscustomobject]@{ Item = "Container Apps - $minimumReplicas replicas minimas ociosas"; BRL = Round-Money $containerIdleBrl },
+    [pscustomobject]@{ Item = "Container Apps - $minimumReplicas replicas minimas ativas"; BRL = Round-Money $containerActiveBrl }
 )
 $rows | Format-Table -AutoSize | Out-String | Write-Output
 Write-Output "Faixa mensal parcial, sem creditos: BRL $((Round-Money ($fixedMonthly + $containerIdleBrl)).ToString('F2')) a BRL $((Round-Money ($fixedMonthly + $containerActiveBrl)).ToString('F2'))."

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "expectedResourceCount": 22,
+  "expectedResourceCount": 21,
   "resources": [
     {
       "component": "Container Apps Environment",
@@ -21,28 +21,22 @@
       "regional": true
     },
     {
-      "component": "Private DNS Zone",
-      "namespace": "Microsoft.Network",
-      "resourceType": "privateDnsZones",
-      "regional": false
-    },
-    {
-      "component": "Private DNS VNet link",
-      "namespace": "Microsoft.Network",
-      "resourceType": "privateDnsZones/virtualNetworkLinks",
-      "regional": false
-    },
-    {
-      "component": "Container Registry",
-      "namespace": "Microsoft.ContainerRegistry",
-      "resourceType": "registries",
+      "component": "Azure SQL logical server",
+      "namespace": "Microsoft.Sql",
+      "resourceType": "servers",
       "regional": true
     },
     {
-      "component": "PostgreSQL Flexible Server",
-      "namespace": "Microsoft.DBforPostgreSQL",
-      "resourceType": "flexibleServers",
+      "component": "Azure SQL Database (serverless, oferta gratuita)",
+      "namespace": "Microsoft.Sql",
+      "resourceType": "servers/databases",
       "regional": true
+    },
+    {
+      "component": "Azure SQL firewall rule",
+      "namespace": "Microsoft.Sql",
+      "resourceType": "servers/firewallRules",
+      "regional": false
     },
     {
       "component": "Key Vault",

@@ -16,22 +16,36 @@ param tags object
 @description('Contato administrativo exigido pelo API Management.')
 param publisherEmail string
 
-@description('Login administrativo temporário do PostgreSQL.')
-param postgresqlAdministratorLogin string
+@description('Login administrativo do Azure SQL.')
+param sqlAdministratorLogin string
 
 @secure()
-@description('Senha administrativa do PostgreSQL; nunca é gravada no repositório nem exposta em outputs.')
-param postgresqlAdministratorPassword string
+@description('Senha administrativa do Azure SQL; nunca é gravada no repositório nem exposta em outputs.')
+param sqlAdministratorPassword string
+
+@description('IP público opcional do administrador liberado no firewall do Azure SQL.')
+param administratorIpAddress string = ''
 
 @secure()
-@description('Credenciais exclusivas dos bancos de aplicação, provisionadas antes de habilitar os workloads.')
+@description('Credenciais exclusivas por schema (identidade, operacoes, indicadores, notificacoes), provisionadas antes de habilitar os workloads.')
 param serviceDatabaseCredentials object
 
-@description('SKU candidato do PostgreSQL, sujeito ao preflight de região/cota/custo.')
-param postgresqlSkuName string
+@secure()
+@description('Connection string do MongoDB Atlas usada somente pela Frota.')
+param mongodbUri string = ''
 
-@description('Tag versionada das imagens Java no ACR.')
+@secure()
+@description('Chave da Function calcular-eficiencia entregue somente ao BFF.')
+param eficienciaFunctionKey string = ''
+
+@description('Prefixo das imagens públicas no Docker Hub.')
+param containerImagePrefix string
+
+@description('Tag versionada das imagens Java.')
 param containerImageTag string
+
+@description('Mantém a sub-rede delegada do PostgreSQL legado enquanto o servidor antigo existir.')
+param legacyPostgresqlSubnetEnabled bool = true
 
 @secure()
 @description('Chave RSA PKCS#8 da Identidade.')
@@ -53,21 +67,14 @@ param notificationRecipientEmail string = ''
 var resourceToken = toLower(uniqueString(subscription().id, resourceGroup().id, location))
 var baseName = '${resourcePrefix}-${environmentName}'
 var compactName = '${resourcePrefix}${environmentName}${resourceToken}'
-var serviceDatabaseNames = [
-  'identidade'
-  'frota'
-  'operacoes'
-  'indicadores'
-  'notificacoes'
-]
+var sqlDatabaseName = 'nexfleet'
 
 var logAnalyticsName = 'log-${baseName}-${resourceToken}'
 var applicationInsightsName = 'appi-${baseName}-${resourceToken}'
-var containerRegistryName = take('cr${compactName}', 50)
 var keyVaultName = take('kv-${baseName}-${resourceToken}', 24)
 var storageAccountName = take('st${compactName}', 24)
 var serviceBusName = take('sb-${baseName}-${resourceToken}', 50)
-var postgresqlServerName = take('psql-${baseName}-${resourceToken}', 63)
+var sqlServerName = take('sql-${baseName}-${resourceToken}', 63)
 var containerEnvironmentName = take('cae-${baseName}-${resourceToken}', 60)
 var staticWebAppName = take('swa-${baseName}-${resourceToken}', 60)
 var apiManagementName = take('apim-${baseName}-${resourceToken}', 50)
@@ -76,7 +83,6 @@ var functionPlanName = take('plan-func-${baseName}-${resourceToken}', 60)
 var functionAppName = take('func-${baseName}-${resourceToken}', 60)
 var functionDeploymentContainerName = 'app-package-${take(resourceToken, 13)}'
 var virtualNetworkName = take('vnet-${baseName}-${resourceToken}', 64)
-var postgresPrivateDnsName = 'privatelink.postgres.database.azure.com'
 var externalEmailEnabled = !empty(notificationRecipientEmail)
 var emailServiceName = take('ecs-${baseName}-${resourceToken}', 63)
 var communicationServiceName = take('acs-${baseName}-${resourceToken}', 63)
@@ -113,7 +119,8 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
       name: 'PerGB2018'
     }
     workspaceCapping: {
-      dailyQuotaGb: 1
+      // Limite de custo da entrega final: no máximo 0,15 GB/dia de ingestão.
+      dailyQuotaGb: json('0.15')
     }
   }
 }
@@ -131,21 +138,6 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
     IngestionMode: 'LogAnalytics'
     RetentionInDays: 30
     WorkspaceResourceId: logAnalytics.id
-  }
-}
-
-resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
-  name: containerRegistryName
-  location: location
-  tags: tags
-  sku: {
-    name: 'Basic'
-  }
-  properties: {
-    adminUserEnabled: false
-    dataEndpointEnabled: false
-    publicNetworkAccess: 'Enabled'
-    zoneRedundancy: 'Disabled'
   }
 }
 
@@ -307,6 +299,23 @@ resource notificacoesRule 'Microsoft.ServiceBus/namespaces/topics/subscriptions/
   }
 }
 
+// Sub-rede do PostgreSQL da v0.30.0. Uma sub-rede em uso não pode ser removida: fica enquanto o
+// servidor antigo existir (reversão) e sai com legacyPostgresqlSubnetEnabled=false depois da exclusão.
+var legacyPostgresqlSubnet = {
+  name: 'postgresql'
+  properties: {
+    addressPrefix: '10.42.2.0/24'
+    delegations: [
+      {
+        name: 'postgresql-delegation'
+        properties: {
+          serviceName: 'Microsoft.DBforPostgreSQL/flexibleServers'
+        }
+      }
+    ]
+  }
+}
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   name: virtualNetworkName
   location: location
@@ -317,7 +326,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
         '10.42.0.0/16'
       ]
     }
-    subnets: [
+    subnets: concat([
       {
         name: 'container-apps'
         properties: {
@@ -327,20 +336,6 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
               name: 'container-apps-delegation'
               properties: {
                 serviceName: 'Microsoft.App/environments'
-              }
-            }
-          ]
-        }
-      }
-      {
-        name: 'postgresql'
-        properties: {
-          addressPrefix: '10.42.2.0/24'
-          delegations: [
-            {
-              name: 'postgresql-delegation'
-              properties: {
-                serviceName: 'Microsoft.DBforPostgreSQL/flexibleServers'
               }
             }
           ]
@@ -360,7 +355,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2024-05-01' = {
           ]
         }
       }
-    ]
+    ], legacyPostgresqlSubnetEnabled ? [legacyPostgresqlSubnet] : [])
   }
 }
 
@@ -369,85 +364,71 @@ resource containerAppsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-
   name: 'container-apps'
 }
 
-resource postgresqlSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' existing = {
-  parent: virtualNetwork
-  name: 'postgresql'
-}
-
 resource functionsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' existing = {
   parent: virtualNetwork
   name: 'functions'
 }
 
-resource postgresPrivateDns 'Microsoft.Network/privateDnsZones@2024-06-01' = {
-  name: postgresPrivateDnsName
-  location: 'global'
-  tags: tags
-}
-
-resource postgresPrivateDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
-  parent: postgresPrivateDns
-  name: 'link-${baseName}'
-  location: 'global'
+// Azure SQL com endpoint público e TLS 1.2 (risco aceito na spec). Um único banco serverless
+// com a oferta gratuita: ao esgotar o limite mensal, pausa em vez de cobrar.
+resource sqlServer 'Microsoft.Sql/servers@2023-08-01' = {
+  name: sqlServerName
+  location: location
   tags: tags
   properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: virtualNetwork.id
-    }
+    administratorLogin: sqlAdministratorLogin
+    administratorLoginPassword: sqlAdministratorPassword
+    minimalTlsVersion: '1.2'
+    publicNetworkAccess: 'Enabled'
+    restrictOutboundNetworkAccess: 'Disabled'
+    version: '12.0'
   }
 }
 
-resource postgresqlServer 'Microsoft.DBforPostgreSQL/flexibleServers@2026-10-01' = {
-  name: postgresqlServerName
+// 0.0.0.0 é a regra especial "Permitir serviços e recursos do Azure".
+resource sqlAllowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-08-01' = {
+  parent: sqlServer
+  name: 'AllowAllWindowsAzureIps'
+  properties: {
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '0.0.0.0'
+  }
+}
+
+resource sqlAllowAdministrator 'Microsoft.Sql/servers/firewallRules@2023-08-01' = if (!empty(administratorIpAddress)) {
+  parent: sqlServer
+  name: 'AllowAdministratorIp'
+  properties: {
+    startIpAddress: administratorIpAddress
+    endIpAddress: administratorIpAddress
+  }
+}
+
+resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01' = {
+  parent: sqlServer
+  name: sqlDatabaseName
   location: location
   tags: tags
   sku: {
-    name: postgresqlSkuName
-    tier: 'Burstable'
+    name: 'GP_S_Gen5'
+    tier: 'GeneralPurpose'
+    family: 'Gen5'
+    capacity: 2
   }
   properties: {
-    administratorLogin: postgresqlAdministratorLogin
-    administratorLoginPassword: postgresqlAdministratorPassword
-    authConfig: {
-      activeDirectoryAuth: 'Disabled'
-      passwordAuth: 'Enabled'
-    }
-    backup: {
-      backupRetentionDays: 7
-      geoRedundantBackup: 'Disabled'
-      immutableBackup: 'Disabled'
-    }
-    createMode: 'Create'
-    highAvailability: {
-      mode: 'Disabled'
-    }
-    network: {
-      delegatedSubnetResourceId: postgresqlSubnet.id
-      privateDnsZoneArmResourceId: postgresPrivateDns.id
-      publicNetworkAccess: 'Disabled'
-    }
-    storage: {
-      autoGrow: 'Enabled'
-      storageSizeGB: 32
-      tier: 'P4'
-      type: 'Premium_LRS'
-    }
-    version: '18'
+    autoPauseDelay: 60
+    collation: 'SQL_Latin1_General_CP1_CI_AS'
+    freeLimitExhaustionBehavior: 'AutoPause'
+    maxSizeBytes: 34359738368
+    minCapacity: json('0.5')
+    requestedBackupStorageRedundancy: 'Local'
+    useFreeLimit: true
+    zoneRedundant: false
   }
-  dependsOn: [
-    postgresPrivateDnsLink
-  ]
 }
 
-resource serviceDatabases 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2026-10-01' = [for databaseName in serviceDatabaseNames: {
-  parent: postgresqlServer
-  name: databaseName
-  properties: {
-    charset: 'UTF8'
-    collation: 'en_US.utf8'
-  }
-}]
+// loginTimeout cobre o cold start (~1 min) do banco em auto-pause.
+var sqlJdbcUrl = 'jdbc:sqlserver://${sqlServer.properties.fullyQualifiedDomainName}:1433;databaseName=${sqlDatabase.name};encrypt=true;trustServerCertificate=false;loginTimeout=60'
 
 resource containerEnvironment 'Microsoft.App/managedEnvironments@2025-07-01' = {
   name: containerEnvironmentName
@@ -524,20 +505,9 @@ var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 var storageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
 var monitoringMetricsPublisherRoleId = '3913510d-42f4-4e42-8a64-420c390055eb'
-var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
 var serviceBusDataSenderRoleId = '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39'
 var serviceBusDataReceiverRoleId = '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0'
 var communicationEmailOwnerRoleId = '09976791-48a7-449e-bb21-39d1a415f350'
-
-resource workloadAcrPullRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for (workloadName, index) in workloadNames: {
-  name: guid(containerRegistry.id, workloadIdentities[index].id, acrPullRoleId)
-  scope: containerRegistry
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPullRoleId)
-    principalId: workloadIdentities[index].properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}]
 
 resource operacoesServiceBusSenderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(serviceBus.id, workloadIdentities[4].id, serviceBusDataSenderRoleId)
@@ -732,7 +702,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       NexFleetServiceBus__credential: 'managedidentity'
       NexFleetServiceBus__clientId: functionIdentity.properties.clientId
       'AzureWebJobs.NotificarAbastecimentoRabbit.Disabled': 'true'
-      DB_URL: 'jdbc:postgresql://${postgresqlServer.properties.fullyQualifiedDomainName}:5432/notificacoes?sslmode=require'
+      DB_URL: sqlJdbcUrl
       DB_USER: serviceDatabaseCredentials.notificacoes.login
       DB_PASSWORD: serviceDatabaseCredentials.notificacoes.password
     }, emailAppSettings)
@@ -749,10 +719,13 @@ module workloads './workloads.bicep' = if (workloadsEnabled) {
     tags: tags
     baseName: baseName
     environmentId: containerEnvironment.id
-    registryServer: containerRegistry.properties.loginServer
+    imagePrefix: containerImagePrefix
     imageTag: containerImageTag
-    postgresqlHost: postgresqlServer.properties.fullyQualifiedDomainName
+    sqlJdbcUrl: sqlJdbcUrl
     databaseCredentials: serviceDatabaseCredentials
+    mongodbUri: mongodbUri
+    eficienciaFunctionUrl: 'https://${functionApp.properties.defaultHostName}/api/calcular-eficiencia'
+    eficienciaFunctionKey: eficienciaFunctionKey
     jwtPrivateKey: jwtPrivateKey
     serviceBusNamespace: '${serviceBus.name}.servicebus.windows.net'
     workloadProfile: workloadProfile
@@ -784,11 +757,13 @@ module workloads './workloads.bicep' = if (workloadsEnabled) {
     }
   }
   dependsOn: [
-    workloadAcrPullRoles
+    sqlAllowAzureServices
     operacoesServiceBusSenderRole
     indicadoresServiceBusReceiverRole
   ]
 }
+
+var apiCorsPolicy = '<policies><inbound><cors allow-credentials="false"><allowed-origins><origin>https://${staticWebApp.properties.defaultHostname}</origin></allowed-origins><allowed-methods preflight-result-max-age="300"><method>*</method></allowed-methods><allowed-headers><header>*</header></allowed-headers></cors><base /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>'
 
 resource nexfleetApi 'Microsoft.ApiManagement/service/apis@2024-05-01' = if (workloadsEnabled) {
   parent: apiManagement
@@ -826,7 +801,62 @@ resource nexfleetApiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-0
   ]
   properties: {
     format: 'xml'
-    value: '<policies><inbound><cors allow-credentials="false"><allowed-origins><origin>https://${staticWebApp.properties.defaultHostname}</origin></allowed-origins><allowed-methods preflight-result-max-age="300"><method>*</method></allowed-methods><allowed-headers><header>*</header></allowed-headers></cors><base /></inbound><backend><base /></backend><outbound><base /></outbound><on-error><base /></on-error></policies>'
+    value: apiCorsPolicy
+  }
+}
+
+// Rotas fora de /api encaminhadas à raiz do Gateway: agregação do BFF e Swagger UI única
+// (a UI e os OpenAPI de cada serviço ficam em /swagger-ui, /webjars, /v3/api-docs e /docs/<svc>).
+var gatewayRootOperations = [
+  { name: 'get-aggregated-data', method: 'GET', urlTemplate: '/aggregated-data' }
+  { name: 'options-aggregated-data', method: 'OPTIONS', urlTemplate: '/aggregated-data' }
+  { name: 'get-swagger-ui-html', method: 'GET', urlTemplate: '/swagger-ui.html' }
+  { name: 'get-swagger-ui', method: 'GET', urlTemplate: '/swagger-ui/*' }
+  { name: 'get-webjars', method: 'GET', urlTemplate: '/webjars/*' }
+  { name: 'get-api-docs', method: 'GET', urlTemplate: '/v3/api-docs' }
+  { name: 'get-api-docs-wildcard', method: 'GET', urlTemplate: '/v3/api-docs/*' }
+  { name: 'get-docs', method: 'GET', urlTemplate: '/docs/*' }
+]
+
+resource gatewayRootApi 'Microsoft.ApiManagement/service/apis@2024-05-01' = if (workloadsEnabled) {
+  parent: apiManagement
+  name: 'nexfleet-gateway-root'
+  properties: {
+    apiType: 'http'
+    displayName: 'NexFleet agregação e documentação'
+    path: ''
+    protocols: [
+      'https'
+    ]
+    serviceUrl: 'https://${workloads!.outputs.gatewayFqdn}'
+    subscriptionRequired: false
+  }
+  dependsOn: [
+    nexfleetApiPolicy
+  ]
+}
+
+@batchSize(1)
+resource gatewayRootApiOperations 'Microsoft.ApiManagement/service/apis/operations@2024-05-01' = [for operation in gatewayRootOperations: if (workloadsEnabled) {
+  parent: gatewayRootApi
+  name: operation.name
+  properties: {
+    displayName: '${operation.method} ${operation.urlTemplate}'
+    method: operation.method
+    urlTemplate: operation.urlTemplate
+    responses: []
+  }
+}]
+
+resource gatewayRootApiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-05-01' = if (workloadsEnabled) {
+  parent: gatewayRootApi
+  name: 'policy'
+  dependsOn: [
+    gatewayRootApiOperations
+  ]
+  properties: {
+    format: 'xml'
+    value: apiCorsPolicy
   }
 }
 
@@ -838,12 +868,12 @@ output resourceNames object = {
   communicationService: externalEmailEnabled ? communicationServiceName : ''
   emailProvider: emailAppSettings.EMAIL_PROVIDER
   containerAppsEnvironment: containerEnvironment.name
-  containerRegistry: containerRegistry.name
   containerApps: workloadsEnabled ? workloads!.outputs.names : {}
   functionApp: functionApp.name
   keyVault: keyVault.name
   logAnalytics: logAnalytics.name
-  postgresql: postgresqlServer.name
+  sqlServer: sqlServer.name
+  sqlDatabase: sqlDatabase.name
   serviceBus: serviceBus.name
   staticWebApp: staticWebApp.name
   storageAccount: functionStorage.name

@@ -10,19 +10,16 @@ param tags object
 @description('Resource ID do Container Apps Environment.')
 param environmentId string
 
-@description('Imagem imutável ou versionada do serviço.')
+@description('Imagem pública e versionada do serviço (Docker Hub), puxada sem credencial de registry.')
 param image string
 
-@description('Servidor do Azure Container Registry.')
-param registryServer string
-
-@description('Resource ID da identidade gerenciada usada pelo workload e pelo ACR.')
+@description('Resource ID da identidade gerenciada usada pelo workload (Service Bus e DefaultAzureCredential).')
 param identityResourceId string
 
 @description('Expõe o ingress para a internet somente no Gateway.')
 param externalIngress bool = false
 
-@description('Réplicas mínimas. Consumidores e jobs de outbox não podem escalar a zero.')
+@description('Réplicas mínimas. Zero por padrão: o app sobe na primeira requisição HTTP.')
 @minValue(0)
 param minReplicas int = 0
 
@@ -75,12 +72,6 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
           }
         ]
       }
-      registries: [
-        {
-          server: registryServer
-          identity: identityResourceId
-        }
-      ]
       secrets: secrets.values
     }
     template: {

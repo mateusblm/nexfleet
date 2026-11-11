@@ -85,6 +85,24 @@ foreach ($item in @($requirements.resources)) {
     if ($shouldBeModeled) { $modeled++ } else { $pending++ }
 }
 if ($pending -ne 0) { throw "Nenhuma família pode permanecer pendente no Bicep; encontradas: $pending." }
+foreach ($forbidden in @('Microsoft.DBforPostgreSQL/flexibleServers@', 'Microsoft.ContainerRegistry/registries@',
+        'Microsoft.Network/privateDnsZones@', 'Microsoft.App/jobs@')) {
+    if ($allBicep.Contains($forbidden)) { throw "Tipo removido na v1.0.0 ainda declarado no Bicep: $forbidden" }
+}
+if ($allBicep -match '(?m)^\s*registries:') {
+    throw 'Os Container Apps puxam imagens públicas do Docker Hub, sem credencial de registry.'
+}
+if ($platformBicep -notmatch 'useFreeLimit: true' -or $platformBicep -notmatch "freeLimitExhaustionBehavior: 'AutoPause'") {
+    throw 'O Azure SQL deve usar a oferta gratuita com AutoPause ao esgotar o limite.'
+}
+if ($platformBicep -notmatch "dailyQuotaGb: json\('0\.(0\d|1[0-5])'\)") {
+    throw 'O Log Analytics deve limitar a ingestão diária a no máximo 0,15 GB.'
+}
+$workloadsBicep = Get-Content -LiteralPath (Join-Path $azureInfra 'modules/workloads.bicep') -Raw -Encoding UTF8
+$replicaValues = @([regex]::Matches($workloadsBicep, 'minReplicas:\s*(\S+)') | ForEach-Object { $_.Groups[1].Value })
+if ($replicaValues.Count -ne 6 -or @($replicaValues | Where-Object { $_ -ne '0' }).Count -ne 0) {
+    throw 'Os seis Container Apps devem declarar minReplicas: 0.'
+}
 if ($allBicep -match '(?im)\baz\s+deployment\s+.*\bcreate\b') {
     throw 'Os templates não podem conter comando de implantação.'
 }

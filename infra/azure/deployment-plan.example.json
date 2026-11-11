@@ -7,10 +7,9 @@
   "messagingDecision": "pending",
   "plannedSkus": {
     "apiManagement": "Consumption",
-    "containerRegistry": "Basic",
     "functionApp": "FlexConsumption-FC1",
-    "postgresql": "Burstable-Standard_B1ms",
     "serviceBus": "Standard",
+    "sqlDatabase": "GeneralPurpose-Serverless-GP_S_Gen5_2-FreeOffer",
     "staticWebApp": "Free",
     "storage": "Standard_LRS"
   },

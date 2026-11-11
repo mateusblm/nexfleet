@@ -4,7 +4,11 @@ param(
     [string]$DeploymentPlanPath,
     [string]$SecretsPath,
     [switch]$EnableWorkloads,
-    # carga: 1 vCPU e 1-4 replicas somente durante o CQ09; voltar para economico ao terminar.
+    # Confirma que o bootstrap T-SQL criou os schemas e logins por servico no Azure SQL.
+    [switch]$DatabaseBootstrapConfirmed,
+    # IP publico opcional do administrador liberado no firewall do Azure SQL.
+    [string]$AdministratorIpAddress = '',
+    # carga: 1 vCPU e 0-4 replicas somente durante testes de carga; voltar para economico ao terminar.
     [ValidateSet('economico', 'carga')]
     [string]$WorkloadProfile = 'economico',
     [switch]$Authorize
@@ -59,23 +63,23 @@ function ConvertFrom-ProtectedValue([Security.SecureString]$Value) {
 
 if (Test-Path -LiteralPath $SecretsPath -PathType Leaf) {
     $secretBundle = Import-Clixml -LiteralPath $SecretsPath
-    if ([int]$secretBundle.schemaVersion -ne 1) { throw 'Bundle de segredos Azure possui versao inesperada.' }
+    if ([int]$secretBundle.schemaVersion -ne 2) { throw 'Bundle de segredos Azure possui versao inesperada (esperado 2, Azure SQL).' }
     Write-Output 'Reutilizando bundle de segredos protegido pelo usuario atual do Windows.'
 } else {
     $secretDirectory = Split-Path -Parent $SecretsPath
     New-Item -ItemType Directory -Path $secretDirectory -Force | Out-Null
     $serviceCredentials = [ordered]@{}
-    foreach ($service in @('identidade', 'frota', 'operacoes', 'indicadores', 'notificacoes')) {
+    foreach ($service in @('identidade', 'operacoes', 'indicadores', 'notificacoes')) {
         $serviceCredentials[$service] = [pscustomobject]@{
             login = "nexfleet_$service"
             password = ConvertTo-SecureString (New-StrongPassword) -AsPlainText -Force
         }
     }
     $secretBundle = [pscustomobject]@{
-        schemaVersion = 1
+        schemaVersion = 2
         createdUtc = [DateTime]::UtcNow.ToString('o')
-        postgresqlAdministratorLogin = 'nexfleetadmin'
-        postgresqlAdministratorPassword = ConvertTo-SecureString (New-StrongPassword) -AsPlainText -Force
+        sqlAdministratorLogin = 'nexfleetadmin'
+        sqlAdministratorPassword = ConvertTo-SecureString (New-StrongPassword) -AsPlainText -Force
         services = $serviceCredentials
     }
     $secretBundle | Export-Clixml -LiteralPath $SecretsPath -Depth 8 -Force
@@ -91,7 +95,7 @@ $jwtPrivateKeyBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(
 ))
 
 $serviceDatabaseCredentials = [ordered]@{}
-foreach ($service in @('identidade', 'frota', 'operacoes', 'indicadores', 'notificacoes')) {
+foreach ($service in @('identidade', 'operacoes', 'indicadores', 'notificacoes')) {
     $credential = $secretBundle.services.$service
     $serviceDatabaseCredentials[$service] = [ordered]@{
         login = [string]$credential.login
@@ -108,20 +112,23 @@ if ($notificationRecipientEmail -and -not [bool]$profile.approvals.notificationP
 
 $workloadsEnabled = $false
 if ($EnableWorkloads) {
-    # Os seis Container Apps so sobem depois da prova verify.sh na Azure (ADR 0034).
-    $migrationReport = Get-ChildItem -LiteralPath $azureInfra -Filter 'database-migration-report-*.json' |
-        Sort-Object Name -Descending | Select-Object -First 1
-    if (-not $migrationReport) { throw 'Execute Publish-AzureDatabaseMigration.ps1 antes de habilitar os workloads.' }
-    $migration = Get-Content -LiteralPath $migrationReport.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($migration.migrate.status -ne 'Succeeded' -or $migration.verify.status -ne 'Succeeded') {
-        throw "O ultimo relatorio de migracao nao foi aprovado: $($migrationReport.Name)"
+    # Os seis Container Apps so sobem depois do bootstrap T-SQL dos schemas e logins.
+    if (-not $DatabaseBootstrapConfirmed) {
+        throw 'Execute o bootstrap do Azure SQL e repita com -DatabaseBootstrapConfirmed antes de habilitar os workloads.'
     }
     $workloadsEnabled = $true
 }
 
 $now = Get-Date
 $budgetStart = Get-Date -Year $now.Year -Month $now.Month -Day 1 -Hour 0 -Minute 0 -Second 0
-$version = (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw -Encoding UTF8).Trim()
+# As imagens do Docker Hub usam a tag com prefixo v (v1.0.0).
+$version = 'v' + (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw -Encoding UTF8).Trim().TrimStart('v')
+# Segredos externos lidos somente da sessao: connection string do Atlas e chave da Function.
+$mongodbUri = [string][Environment]::GetEnvironmentVariable('NEXFLEET_AZURE_MONGODB_URI')
+$eficienciaFunctionKey = [string][Environment]::GetEnvironmentVariable('NEXFLEET_AZURE_EFICIENCIA_FUNCTION_KEY')
+if ($workloadsEnabled -and ([string]::IsNullOrWhiteSpace($mongodbUri) -or [string]::IsNullOrWhiteSpace($eficienciaFunctionKey))) {
+    throw 'Defina NEXFLEET_AZURE_MONGODB_URI e NEXFLEET_AZURE_EFICIENCIA_FUNCTION_KEY antes de habilitar os workloads.'
+}
 $parameters = [ordered]@{
     location = @{ value = [string]$profile.location }
     staticWebLocation = @{ value = [string]$profile.staticWebLocation }
@@ -133,10 +140,12 @@ $parameters = [ordered]@{
     budgetEndDate = @{ value = $budgetStart.AddYears(1).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
     budgetAlertEmails = @{ value = @($profile.budgetAlertEmails) }
     notificationRecipientEmail = @{ value = $notificationRecipientEmail }
-    postgresqlAdministratorLogin = @{ value = [string]$secretBundle.postgresqlAdministratorLogin }
-    postgresqlAdministratorPassword = @{ value = ConvertFrom-ProtectedValue $secretBundle.postgresqlAdministratorPassword }
+    sqlAdministratorLogin = @{ value = [string]$secretBundle.sqlAdministratorLogin }
+    sqlAdministratorPassword = @{ value = ConvertFrom-ProtectedValue $secretBundle.sqlAdministratorPassword }
+    administratorIpAddress = @{ value = $AdministratorIpAddress }
     serviceDatabaseCredentials = @{ value = $serviceDatabaseCredentials }
-    postgresqlSkuName = @{ value = 'Standard_B1ms' }
+    mongodbUri = @{ value = $mongodbUri }
+    eficienciaFunctionKey = @{ value = $eficienciaFunctionKey }
     containerImageTag = @{ value = $version }
     jwtPrivateKeyBase64 = @{ value = $jwtPrivateKeyBase64 }
     workloadsEnabled = @{ value = $workloadsEnabled }
@@ -227,7 +236,11 @@ try {
     Write-Output "FUNDACAO AZURE CONCLUIDA. Relatorio: $reportPath"
 } finally {
     Remove-Item -LiteralPath $parameterFile -Force -ErrorAction SilentlyContinue
-    $parameters.postgresqlAdministratorPassword.value = $null
+    $parameters.sqlAdministratorPassword.value = $null
+    $parameters.mongodbUri.value = $null
+    $parameters.eficienciaFunctionKey.value = $null
+    $mongodbUri = $null
+    $eficienciaFunctionKey = $null
     $parameters.serviceDatabaseCredentials.value = $null
     $parameters.jwtPrivateKeyBase64.value = $null
     foreach ($credential in $serviceDatabaseCredentials.Values) { $credential.password = $null }

@@ -26,10 +26,9 @@ if ($account.state -ne 'Enabled') {
 
 $namespaces = @(
     'Microsoft.ApiManagement',
-    'Microsoft.ContainerRegistry',
-    'Microsoft.DBforPostgreSQL',
     'Microsoft.KeyVault',
-    'Microsoft.ManagedIdentity'
+    'Microsoft.ManagedIdentity',
+    'Microsoft.Sql'
 )
 if ($IncludeNetwork) {
     $namespaces += 'Microsoft.Network'

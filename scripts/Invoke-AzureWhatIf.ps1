@@ -98,7 +98,7 @@ function Protect-ArmMessage {
     )
 
     $safeMessage = $Message
-    foreach ($name in @('postgresqlAdministratorPassword', 'jwtPrivateKeyBase64')) {
+    foreach ($name in @('sqlAdministratorPassword', 'jwtPrivateKeyBase64', 'mongodbUri', 'eficienciaFunctionKey')) {
         if ($DeploymentParameters.Contains($name)) {
             $secretValue = [string]$DeploymentParameters[$name].value
             if (-not [string]::IsNullOrWhiteSpace($secretValue)) {
@@ -243,10 +243,13 @@ if ($LASTEXITCODE -ne 0) { throw 'O preflight Azure conectado foi reprovado.' }
 
 $resolvedAzPath = Resolve-AzureCli -AzPath $AzPath
 
-$postgresPassword = [Environment]::GetEnvironmentVariable('NEXFLEET_AZURE_POSTGRES_ADMIN_PASSWORD')
-if ([string]::IsNullOrWhiteSpace($postgresPassword) -or $postgresPassword.Length -lt 12) {
-    throw 'Defina NEXFLEET_AZURE_POSTGRES_ADMIN_PASSWORD com uma senha forte somente nesta sessão.'
+$sqlPassword = [Environment]::GetEnvironmentVariable('NEXFLEET_AZURE_SQL_ADMIN_PASSWORD')
+if ([string]::IsNullOrWhiteSpace($sqlPassword) -or $sqlPassword.Length -lt 12) {
+    throw 'Defina NEXFLEET_AZURE_SQL_ADMIN_PASSWORD com uma senha forte somente nesta sessão.'
 }
+# Opcionais no what-if: vazios mantêm os secrets do Container App sem valor real.
+$mongodbUri = [string][Environment]::GetEnvironmentVariable('NEXFLEET_AZURE_MONGODB_URI')
+$eficienciaFunctionKey = [string][Environment]::GetEnvironmentVariable('NEXFLEET_AZURE_EFICIENCIA_FUNCTION_KEY')
 $jwtKeyPath = Join-Path $projectRoot '.secrets/identidade-jwt.pem'
 if (-not (Test-Path -LiteralPath $jwtKeyPath -PathType Leaf)) {
     throw 'Chave RSA local ausente. Execute Initialize-Local.ps1 antes do what-if.'
@@ -257,10 +260,10 @@ if ($jwtPrivateKey -notmatch '-----BEGIN PRIVATE KEY-----') {
 }
 $jwtPrivateKeyBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($jwtPrivateKey))
 $jwtPrivateKey = $null
-$containerImageTag = (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim()
+# As imagens do Docker Hub usam a tag com prefixo v (v1.0.0).
+$containerImageTag = 'v' + (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim().TrimStart('v')
 $serviceDatabaseCredentials = [ordered]@{
     identidade = [ordered]@{ login = 'nexfleet_identidade'; password = (New-TemporaryPassword) }
-    frota = [ordered]@{ login = 'nexfleet_frota'; password = (New-TemporaryPassword) }
     operacoes = [ordered]@{ login = 'nexfleet_operacoes'; password = (New-TemporaryPassword) }
     indicadores = [ordered]@{ login = 'nexfleet_indicadores'; password = (New-TemporaryPassword) }
     notificacoes = [ordered]@{ login = 'nexfleet_notificacoes'; password = (New-TemporaryPassword) }
@@ -287,9 +290,11 @@ $parameters = [ordered]@{
         budgetEndDate = @{ value = $budgetEnd.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
         budgetAlertEmails = @{ value = @($profile.budgetAlertEmails) }
         notificationRecipientEmail = @{ value = $(if ($profile.PSObject.Properties.Name -contains 'notificationRecipientEmail') { [string]$profile.notificationRecipientEmail } else { '' }) }
-        postgresqlAdministratorLogin = @{ value = 'nexfleetadmin' }
-        postgresqlAdministratorPassword = @{ value = $postgresPassword }
+        sqlAdministratorLogin = @{ value = 'nexfleetadmin' }
+        sqlAdministratorPassword = @{ value = $sqlPassword }
         serviceDatabaseCredentials = @{ value = $serviceDatabaseCredentials }
+        mongodbUri = @{ value = $mongodbUri }
+        eficienciaFunctionKey = @{ value = $eficienciaFunctionKey }
         containerImageTag = @{ value = $containerImageTag }
         jwtPrivateKeyBase64 = @{ value = $jwtPrivateKeyBase64 }
         workloadsEnabled = @{ value = $true }
@@ -373,10 +378,14 @@ try {
     }
     $json | Set-Content -LiteralPath $ReportPath -Encoding UTF8
 } finally {
-    $parameters.parameters.postgresqlAdministratorPassword.value = $null
+    $parameters.parameters.sqlAdministratorPassword.value = $null
+    $parameters.parameters.mongodbUri.value = $null
+    $parameters.parameters.eficienciaFunctionKey.value = $null
     $parameters.parameters.serviceDatabaseCredentials.value = $null
     $parameters.parameters.jwtPrivateKeyBase64.value = $null
-    $postgresPassword = $null
+    $sqlPassword = $null
+    $mongodbUri = $null
+    $eficienciaFunctionKey = $null
     $jwtPrivateKey = $null
     $jwtPrivateKeyBase64 = $null
     foreach ($credential in $serviceDatabaseCredentials.Values) { $credential.password = $null }

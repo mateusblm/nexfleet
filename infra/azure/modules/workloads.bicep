@@ -10,18 +10,29 @@ param baseName string
 @description('Resource ID do Container Apps Environment.')
 param environmentId string
 
-@description('Login server do ACR.')
-param registryServer string
+@description('Prefixo das imagens públicas, por exemplo docker.io/mateusblm/nexfleet-.')
+param imagePrefix string
 
 @description('Tag versionada das seis imagens.')
 param imageTag string
 
-@description('FQDN privado do PostgreSQL.')
-param postgresqlHost string
+@description('URL JDBC do Azure SQL com TLS obrigatório; o schema vem do login de cada serviço.')
+param sqlJdbcUrl string
 
 @secure()
-@description('Credenciais exclusivas por banco; o login administrativo é proibido nos workloads.')
+@description('Credenciais exclusivas por schema; o login administrativo é proibido nos workloads.')
 param databaseCredentials object
+
+@secure()
+@description('Connection string do MongoDB Atlas da Frota.')
+param mongodbUri string
+
+@description('URL HTTPS da Function calcular-eficiencia chamada pelo BFF.')
+param eficienciaFunctionUrl string
+
+@secure()
+@description('Chave da Function calcular-eficiencia, entregue somente ao BFF.')
+param eficienciaFunctionKey string
 
 @secure()
 @description('Chave privada RSA PKCS#8 montada somente no serviço Identidade.')
@@ -33,7 +44,7 @@ param serviceBusNamespace string
 @description('Identidades gerenciadas, uma para cada serviço.')
 param identities object
 
-@description('economico: 0.5 vCPU, até 2 réplicas, escala a zero onde permitido. carga: 1 vCPU, 1 a 4 réplicas, usado somente na janela do CQ09.')
+@description('economico: 0.5 vCPU, 0 a 2 réplicas. carga: 1 vCPU, 0 a 4 réplicas, usado somente na janela de um teste de carga.')
 @allowed([
   'economico'
   'carga'
@@ -58,23 +69,24 @@ module identidade './container-app.bicep' = {
     location: location
     tags: tags
     environmentId: environmentId
-    image: '${registryServer}/identidade:${imageTag}'
-    registryServer: registryServer
+    image: '${imagePrefix}identidade:${imageTag}'
     identityResourceId: identities.identidade.id
-    minReplicas: carga ? 1 : 0
+    // Sem custo fixo: todos escalam a zero, inclusive no perfil de carga.
+    minReplicas: 0
     maxReplicas: sizing.maxReplicas
     cpu: sizing.cpu
     memory: sizing.memory
     secrets: {
       values: concat([
+        { name: 'db-user', value: databaseCredentials.identidade.login }
         { name: 'db-password', value: databaseCredentials.identidade.password }
       ], [
         { name: 'jwt-private-key', value: jwtPrivateKey }
       ])
     }
     environmentVariables: concat(commonSpring, [
-      { name: 'DB_URL', value: 'jdbc:postgresql://${postgresqlHost}:5432/identidade?sslmode=require' }
-      { name: 'DB_USER', value: databaseCredentials.identidade.login }
+      { name: 'DB_URL', value: sqlJdbcUrl }
+      { name: 'DB_USER', secretRef: 'db-user' }
       { name: 'DB_PASSWORD', secretRef: 'db-password' }
       { name: 'AUTH_JWT_PRIVATE_KEY', value: 'file:/run/secrets/identidade-jwt.pem' }
       { name: 'AZURE_CLIENT_ID', value: identities.identidade.clientId }
@@ -101,22 +113,20 @@ module frota './container-app.bicep' = {
     location: location
     tags: tags
     environmentId: environmentId
-    image: '${registryServer}/frota:${imageTag}'
-    registryServer: registryServer
+    image: '${imagePrefix}frota:${imageTag}'
     identityResourceId: identities.frota.id
-    minReplicas: carga ? 1 : 0
+    // Sem custo fixo: todos escalam a zero, inclusive no perfil de carga.
+    minReplicas: 0
     maxReplicas: sizing.maxReplicas
     cpu: sizing.cpu
     memory: sizing.memory
     secrets: {
       values: [
-        { name: 'db-password', value: databaseCredentials.frota.password }
+        { name: 'mongodb-uri', value: mongodbUri }
       ]
     }
     environmentVariables: concat(commonSpring, [
-      { name: 'DB_URL', value: 'jdbc:postgresql://${postgresqlHost}:5432/frota?sslmode=require' }
-      { name: 'DB_USER', value: databaseCredentials.frota.login }
-      { name: 'DB_PASSWORD', secretRef: 'db-password' }
+      { name: 'MONGODB_URI', secretRef: 'mongodb-uri' }
       { name: 'IDENTIDADE_URL', value: 'https://${identidade.outputs.fqdn}' }
       { name: 'AZURE_CLIENT_ID', value: identities.frota.clientId }
     ])
@@ -130,21 +140,22 @@ module operacoes './container-app.bicep' = {
     location: location
     tags: tags
     environmentId: environmentId
-    image: '${registryServer}/operacoes:${imageTag}'
-    registryServer: registryServer
+    image: '${imagePrefix}operacoes:${imageTag}'
     identityResourceId: identities.operacoes.id
-    minReplicas: 1
+    // Sem custo fixo: todos escalam a zero, inclusive no perfil de carga.
+    minReplicas: 0
     maxReplicas: sizing.maxReplicas
     cpu: sizing.cpu
     memory: sizing.memory
     secrets: {
       values: [
+        { name: 'db-user', value: databaseCredentials.operacoes.login }
         { name: 'db-password', value: databaseCredentials.operacoes.password }
       ]
     }
     environmentVariables: concat(commonSpring, [
-      { name: 'DB_URL', value: 'jdbc:postgresql://${postgresqlHost}:5432/operacoes?sslmode=require' }
-      { name: 'DB_USER', value: databaseCredentials.operacoes.login }
+      { name: 'DB_URL', value: sqlJdbcUrl }
+      { name: 'DB_USER', secretRef: 'db-user' }
       { name: 'DB_PASSWORD', secretRef: 'db-password' }
       { name: 'IDENTIDADE_URL', value: 'https://${identidade.outputs.fqdn}' }
       { name: 'FROTA_URL', value: 'https://${frota.outputs.fqdn}' }
@@ -163,21 +174,22 @@ module indicadores './container-app.bicep' = {
     location: location
     tags: tags
     environmentId: environmentId
-    image: '${registryServer}/indicadores:${imageTag}'
-    registryServer: registryServer
+    image: '${imagePrefix}indicadores:${imageTag}'
     identityResourceId: identities.indicadores.id
-    minReplicas: 1
+    // Sem custo fixo: todos escalam a zero, inclusive no perfil de carga.
+    minReplicas: 0
     maxReplicas: sizing.maxReplicas
     cpu: sizing.cpu
     memory: sizing.memory
     secrets: {
       values: [
+        { name: 'db-user', value: databaseCredentials.indicadores.login }
         { name: 'db-password', value: databaseCredentials.indicadores.password }
       ]
     }
     environmentVariables: concat(commonSpring, [
-      { name: 'DB_URL', value: 'jdbc:postgresql://${postgresqlHost}:5432/indicadores?sslmode=require' }
-      { name: 'DB_USER', value: databaseCredentials.indicadores.login }
+      { name: 'DB_URL', value: sqlJdbcUrl }
+      { name: 'DB_USER', secretRef: 'db-user' }
       { name: 'DB_PASSWORD', secretRef: 'db-password' }
       { name: 'IDENTIDADE_URL', value: 'https://${identidade.outputs.fqdn}' }
       { name: 'MESSAGING_PROVIDER', value: 'servicebus' }
@@ -196,17 +208,21 @@ module bff './container-app.bicep' = {
     location: location
     tags: tags
     environmentId: environmentId
-    image: '${registryServer}/bff:${imageTag}'
-    registryServer: registryServer
+    image: '${imagePrefix}bff:${imageTag}'
     identityResourceId: identities.bff.id
-    minReplicas: carga ? 1 : 0
+    // Sem custo fixo: todos escalam a zero, inclusive no perfil de carga.
+    minReplicas: 0
     maxReplicas: sizing.maxReplicas
     cpu: sizing.cpu
     memory: sizing.memory
     secrets: {
-      values: []
+      values: [
+        { name: 'eficiencia-function-key', value: eficienciaFunctionKey }
+      ]
     }
     environmentVariables: concat(commonSpring, [
+      { name: 'EFICIENCIA_FUNCTION_URL', value: eficienciaFunctionUrl }
+      { name: 'EFICIENCIA_FUNCTION_KEY', secretRef: 'eficiencia-function-key' }
       { name: 'IDENTIDADE_URL', value: 'https://${identidade.outputs.fqdn}' }
       { name: 'FROTA_URL', value: 'https://${frota.outputs.fqdn}' }
       { name: 'OPERACOES_URL', value: 'https://${operacoes.outputs.fqdn}' }
@@ -223,11 +239,11 @@ module gateway './container-app.bicep' = {
     location: location
     tags: tags
     environmentId: environmentId
-    image: '${registryServer}/gateway:${imageTag}'
-    registryServer: registryServer
+    image: '${imagePrefix}gateway:${imageTag}'
     identityResourceId: identities.gateway.id
     externalIngress: true
-    minReplicas: 1
+    // Sem custo fixo: todos escalam a zero, inclusive no perfil de carga.
+    minReplicas: 0
     maxReplicas: sizing.maxReplicas
     cpu: sizing.cpu
     memory: sizing.memory

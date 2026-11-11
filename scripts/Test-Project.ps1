@@ -41,9 +41,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Falha na validação offline da descoberta Azu
 & (Join-Path $PSScriptRoot 'Test-AzureInfrastructure.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Falha na validação offline da infraestrutura Bicep.' }
 
-& (Join-Path $PSScriptRoot 'Test-AzureDatabaseBootstrap.ps1')
-if ($LASTEXITCODE -ne 0) { throw 'Falha na validação do isolamento dos bancos Azure.' }
-
 Push-Location (Join-Path $projectRoot 'quality')
 try {
     & (Join-Path $projectRoot 'services/mvnw.cmd') @mavenArgs verify

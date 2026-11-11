@@ -1,49 +1,75 @@
-# Infraestrutura Azure — preparação segura
+# Infraestrutura Azure — v1.0.0 sem custo fixo
 
 Esta pasta contém o preflight e a infraestrutura Bicep da homologação. Nenhum arquivo é executado automaticamente e a trava `publicationApproved` começa em `false`.
 
-A estimativa pública de custo pode ser atualizada com `scripts/Get-AzureCostEstimate.ps1`. Ela lê os SKUs e réplicas do Bicep, consulta a Azure Retail Prices API e não acessa nem altera a assinatura.
+## Desenho
 
-Arquivos:
+- **Dados:** um Azure SQL Database serverless (`GP_S_Gen5_2`) com a oferta gratuita (`useFreeLimit: true`, `freeLimitExhaustionBehavior: 'AutoPause'`), um schema e um login por serviço (identidade, operacoes, indicadores, notificacoes). Endpoint público com TLS 1.2 e firewall "Permitir serviços do Azure" (0.0.0.0); `administratorIpAddress` libera opcionalmente o IP do administrador. A Frota usa o MongoDB Atlas M0, configurado fora do Bicep; a connection string chega como secret do Container App.
+- **Workloads:** seis Container Apps com imagens públicas `docker.io/mateusblm/nexfleet-<svc>:<tag>` (tag padrão `v1.0.0`), sem bloco `registries`, todos com `minReplicas: 0`. Usuário e senha do banco, `MONGODB_URI` e `EFICIENCIA_FUNCTION_KEY` ficam em secrets do Container App.
+- **Function:** Flex Consumption com `DB_URL`/`DB_USER`/`DB_PASSWORD` do schema `notificacoes`. O BFF recebe `EFICIENCIA_FUNCTION_URL` (`https://<function>/api/calcular-eficiencia`) e a chave da função.
+- **Borda:** APIM Consumption com a API `api` (curinga para `/api/*`) e a API raiz que encaminha ao Gateway `GET /aggregated-data`, `/swagger-ui.html`, `/swagger-ui/*`, `/webjars/*`, `/v3/api-docs[/*]` e `/docs/*`. O Static Web App serve `/docs/eventos` (AsyncAPI em HTML estático).
+- **Observabilidade:** Log Analytics com limite diário de 0,15 GB.
+- **Removidos:** PostgreSQL Flexible Server, zona DNS privada e link, ACR com `AcrPull` e os jobs de migração. O modo incremental não apaga o que já existe: a exclusão dos recursos antigos é manual, depois do smoke da v1.0.0. A sub-rede `postgresql` continua declarada enquanto `legacyPostgresqlSubnetEnabled=true` (padrão), porque uma sub-rede em uso não pode ser removida.
 
-- `preflight-profile.schema.json`: contrato do perfil preenchido pela equipe.
-- `preflight-profile.example.json`: modelo sem assinatura, região, e-mail ou aprovações reais.
-- `preflight-report-*.json`: descoberta conectada local, ignorada pelo Git e sem segredos.
-- `resource-requirements.json`: provedores e tipos de recurso esperados pela arquitetura-alvo.
-- `deployment-plan.example.json`: decisões e travas, sem autorização ou segredo real.
-- `main.bicep`: grupo, orçamento e composição da plataforma.
-- `modules/platform.bicep`: rede, dados, mensageria, Function, borda, identidades e RBAC.
-- `modules/workloads.bicep`: seis Container Apps com imagens versionadas e configuração Service Bus.
+O único custo fixo que sobra é o Service Bus Standard. Custos variáveis: APIM, Container Apps acima da franquia, Function e Log Analytics.
+
+## Arquivos
+
+- `main.bicep`: grupo, orçamento, travas e composição da plataforma.
+- `modules/platform.bicep`: rede, Azure SQL, mensageria, Function, borda, identidades e RBAC.
+- `modules/workloads.bicep`: seis Container Apps com imagens do Docker Hub.
 - `modules/container-app.bicep`: módulo reutilizável de workload, ingress, probes e escala.
-- `sql/bootstrap-service-roles.sql`: cria/atualiza cinco papéis sem privilégios administrativos e remove o acesso cruzado padrão.
-- `../azure-database`: imagem não-root com PostgreSQL client e Flyway para executar as 17 migrações antes dos workloads.
+- `resource-requirements.json`: provedores e tipos de recurso esperados (21).
+- `staticwebapp.config.json`: rotas, fallback e cabeçalhos do frontend, inclusive `/docs/eventos`.
+- `preflight-profile.*.json`, `deployment-plan.example.json`: perfil e plano, sem segredo real.
 - `bicepconfig.json`: regras do linter tratadas como barreiras de segurança.
 
-Execute primeiro `scripts/Get-AzureReadiness.ps1`: ele consulta assinatura, regiões e provedores sem criar ou registrar nada. Depois copie o exemplo para `preflight-profile.json`, preencha as decisões e execute `scripts/Test-AzurePreflight.ps1`. Os arquivos reais são ignorados pelo Git porque contêm identificadores da assinatura.
+## Parâmetros (exemplo sem segredos)
 
-As duas mutações já autorizadas possuem scripts separados e exigem `-Authorize`: `Register-AzureProviders.ps1` limita-se a cinco namespaces fixos e `Set-AzureBudget.ps1` configura os alertas de R$ 100 do perfil real. Nenhum dos dois implanta workloads.
+```json
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "centralus" },
+    "resourceGroupName": { "value": "rg-nexfleet-homolog" },
+    "resourcePrefix": { "value": "nexfleet" },
+    "monthlyBudgetAmount": { "value": 100 },
+    "budgetStartDate": { "value": "2026-11-01T03:00:00Z" },
+    "budgetEndDate": { "value": "2027-11-01T03:00:00Z" },
+    "budgetAlertEmails": { "value": ["<email-do-responsavel>"] },
+    "sqlAdministratorLogin": { "value": "nexfleetadmin" },
+    "sqlAdministratorPassword": { "value": "<senha-forte>" },
+    "administratorIpAddress": { "value": "" },
+    "serviceDatabaseCredentials": { "value": {
+      "identidade":   { "login": "nexfleet_identidade",   "password": "<senha-forte>" },
+      "operacoes":    { "login": "nexfleet_operacoes",    "password": "<senha-forte>" },
+      "indicadores":  { "login": "nexfleet_indicadores",  "password": "<senha-forte>" },
+      "notificacoes": { "login": "nexfleet_notificacoes", "password": "<senha-forte>" }
+    } },
+    "mongodbUri": { "value": "mongodb+srv://frota:<senha>@<cluster>.mongodb.net/frota" },
+    "eficienciaFunctionKey": { "value": "<chave-da-function>" },
+    "containerImageTag": { "value": "v1.0.0" },
+    "jwtPrivateKeyBase64": { "value": "<PEM PKCS#8 em Base64>" },
+    "workloadsEnabled": { "value": true },
+    "databaseMigrationsCompleted": { "value": true },
+    "publicationApproved": { "value": true }
+  }
+}
+```
 
-Validação:
+Nunca commite esse arquivo preenchido. `databaseMigrationsCompleted=true` só depois do bootstrap T-SQL dos schemas e logins; as migrações Flyway rodam na subida de cada serviço.
 
-- `Test-AzureInfrastructure.ps1` faz o lint e o build do Bicep offline e exige 22/22 tipos modelados.
-- `Test-AzureDatabaseBootstrap.ps1` valida o isolamento de forma estática.
-- `Test-AzureDatabaseMigration.ps1` constrói a imagem e comprova, em PostgreSQL efêmero, a idempotência, o `verify.sh` e o `bootstrap-admin.sh`.
-- `Invoke-AzureWhatIf.ps1` executa somente o `what-if`.
+## Validação
 
-A homologação foi publicada em 10/11/2026. Todos os scripts que criam ou alteram recursos exigem `-Authorize`:
+```bash
+az bicep build --file infra/azure/main.bicep
+az bicep lint --file infra/azure/main.bicep
+# Somente leitura: o template é do escopo da assinatura
+az deployment sub what-if --location centralus \
+  --template-file infra/azure/main.bicep --parameters @<arquivo-temporario>.json
+```
 
-- `Deploy-AzureFoundation.ps1`
-- `Publish-AzureImages.ps1`
-- `Publish-AzureDatabaseMigration.ps1`
-- `Publish-AzureFunction.ps1`
-- `Publish-AzureFrontend.ps1`
-- `Test-AzureRecovery.ps1`
+`scripts/Test-AzureInfrastructure.ps1` repete o lint e o build e confere o inventário, as travas, a ausência de PostgreSQL/ACR/DNS privado, `minReplicas: 0`, a oferta gratuita do SQL e o limite do Log Analytics. `scripts/Invoke-AzureWhatIf.ps1` lê `NEXFLEET_AZURE_SQL_ADMIN_PASSWORD` (e, opcionalmente, `NEXFLEET_AZURE_MONGODB_URI` e `NEXFLEET_AZURE_EFICIENCIA_FUNCTION_KEY`) da sessão.
 
-A ordem de execução está no guia `docs/GUIA-INFRAESTRUTURA-AZURE-BICEP.md`, seção 7.1, e as decisões estão na ADR 0037.
-
-Arquivos adicionais desta pasta:
-
-- `migration-job.bicep`: jobs de banco executados dentro da VNet.
-- Relatórios locais (`foundation-deployment-report-*`, `database-migration-report-*`, `homolog-report-*`, `cq10-recovery-report-*`): ignorados pelo Git e sem segredos.
-
-A descoberta, o preflight, o `Test-AzureHomologation.ps1` e o `Invoke-AzureDatabaseQuery.ps1` (somente leitura) não alteram a infraestrutura. Consulte `docs/GUIA-PRE-PUBLICACAO-AZURE.md` antes de conectar uma conta nova.
+Scripts que criam ou alteram recursos exigem `-Authorize`: `Deploy-AzureFoundation.ps1` (com `-EnableWorkloads -DatabaseBootstrapConfirmed` para os workloads), `Publish-AzureFunction.ps1` e `Publish-AzureFrontend.ps1`. O roteiro completo da publicação está em `docs/GUIA-INFRAESTRUTURA-AZURE-BICEP.md`.
