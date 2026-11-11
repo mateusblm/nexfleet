@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: NexFleet — Manutenções
+  version: 1.0.0
+paths:
+  /api/v1/manutencoes:
+    get:
+      operationId: listarManutencoes
+      summary: Lista o histórico de manutenções
+      parameters:
+        - { name: veiculoId, in: query, schema: { type: string, format: uuid } }
+        - { name: pagina, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: tamanho, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Histórico retornado
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Manutencao' } }
+        '400': { description: Paginação ou identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Perfil sem acesso a Operações }
+        '503': { description: Serviço indisponível }
+    post:
+      operationId: registrarManutencao
+      summary: Registra uma manutenção imutável
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NovaManutencao' }
+      responses:
+        '201':
+          description: Manutenção registrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Manutencao' }
+        '400': { description: JSON inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Perfil sem acesso a Operações }
+        '404': { description: Veículo não encontrado }
+        '422': { description: Regra de negócio inválida }
+        '503': { description: Serviço indisponível }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    NovaManutencao:
+      type: object
+      required: [veiculoId, tipo, realizadaEm, quilometragem, descricao, oficina, valor]
+      properties:
+        veiculoId: { type: string, format: uuid }
+        tipo: { type: string, enum: [PREVENTIVA, CORRETIVA, REVISAO, TROCA_OLEO, TROCA_PNEUS, OUTROS] }
+        realizadaEm: { type: string, format: date }
+        quilometragem: { type: integer, format: int64, minimum: 0 }
+        descricao: { type: string, maxLength: 500 }
+        oficina: { type: string, maxLength: 150 }
+        valor: { type: number, minimum: 0, multipleOf: 0.01 }
+        proximaManutencao: { type: [string, 'null'], format: date }
+    Manutencao:
+      allOf:
+        - { $ref: '#/components/schemas/NovaManutencao' }
+        - type: object
+          required: [id, criadoEm]
+          properties:
+            id: { type: string, format: uuid }
+            criadoEm: { type: string, format: date-time }
+security:
+  - bearerAuth: []

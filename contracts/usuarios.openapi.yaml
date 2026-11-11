@@ -1,0 +1,129 @@
+openapi: 3.0.3
+info:
+  title: NexFleet - administração de usuários
+  version: 0.1.0
+  description: Contrato web via Gateway/BFF. Identidade aplica autorização administrativa e consulta o perfil ativo no banco a cada operação. A rota interna equivalente é /api/v1/identidade/usuarios. Respostas não contêm senha ou hash e usam Cache-Control no-store.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /usuarios:
+    get:
+      operationId: listarUsuarios
+      parameters:
+        - {name: pagina, in: query, schema: {type: integer, minimum: 0, maximum: 100000, default: 0}}
+        - {name: tamanho, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200':
+          description: Página ordenada por e-mail e identificador
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Usuario'}}
+        '401': {$ref: '#/components/responses/SemSessao'}
+        '403': {$ref: '#/components/responses/Proibido'}
+        '422': {$ref: '#/components/responses/Invalido'}
+        '503': {$ref: '#/components/responses/Indisponivel'}
+    post:
+      operationId: cadastrarUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, senha, perfil]
+              properties:
+                email: {type: string, format: email, maxLength: 254}
+                senha: {type: string, format: password, minLength: 12, description: Máximo de 72 bytes UTF-8; armazenada somente como BCrypt custo 12}
+                perfil: {$ref: '#/components/schemas/Perfil'}
+      responses:
+        '201':
+          description: Usuário ativo criado
+          headers:
+            Location: {schema: {type: string}, description: URL do usuário criado}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Usuario'}
+        '400': {$ref: '#/components/responses/JsonInvalido'}
+        '401': {$ref: '#/components/responses/SemSessao'}
+        '403': {$ref: '#/components/responses/Proibido'}
+        '409': {$ref: '#/components/responses/Duplicado'}
+        '422': {$ref: '#/components/responses/Invalido'}
+        '503': {$ref: '#/components/responses/Indisponivel'}
+  /usuarios/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: consultarUsuario
+      responses:
+        '200':
+          description: Conta sem credenciais
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Usuario'}
+        '400': {$ref: '#/components/responses/JsonInvalido'}
+        '401': {$ref: '#/components/responses/SemSessao'}
+        '403': {$ref: '#/components/responses/Proibido'}
+        '404': {$ref: '#/components/responses/Ausente'}
+        '503': {$ref: '#/components/responses/Indisponivel'}
+    put:
+      operationId: atualizarUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, perfil, ativo]
+              properties:
+                email: {type: string, format: email, maxLength: 254}
+                perfil: {$ref: '#/components/schemas/Perfil'}
+                ativo: {type: boolean}
+      responses:
+        '200':
+          description: Conta atualizada; a senha é preservada
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Usuario'}
+        '400': {$ref: '#/components/responses/JsonInvalido'}
+        '401': {$ref: '#/components/responses/SemSessao'}
+        '403': {$ref: '#/components/responses/Proibido'}
+        '404': {$ref: '#/components/responses/Ausente'}
+        '409': {$ref: '#/components/responses/Duplicado'}
+        '422': {$ref: '#/components/responses/Invalido'}
+        '503': {$ref: '#/components/responses/Indisponivel'}
+    delete:
+      operationId: desativarUsuario
+      description: Desativação lógica; não apaga a conta nem seu identificador. Repetição retorna 204 se a conta existir.
+      responses:
+        '204': {description: Conta desativada}
+        '400': {$ref: '#/components/responses/JsonInvalido'}
+        '401': {$ref: '#/components/responses/SemSessao'}
+        '403': {$ref: '#/components/responses/Proibido'}
+        '404': {$ref: '#/components/responses/Ausente'}
+        '503': {$ref: '#/components/responses/Indisponivel'}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  schemas:
+    Perfil: {type: string, enum: [ADMINISTRADOR, GESTOR_FROTA]}
+    Usuario:
+      type: object
+      required: [id, email, perfil, ativo]
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        perfil: {$ref: '#/components/schemas/Perfil'}
+        ativo: {type: boolean}
+  responses:
+    JsonInvalido: {description: JSON, identificador ou tipo inválido}
+    SemSessao: {description: Token ausente ou inválido}
+    Proibido: {description: Não é Administrador ativo}
+    Ausente: {description: Usuário não encontrado}
+    Duplicado: {description: E-mail já cadastrado}
+    Invalido: {description: Campo ou paginação inválidos}
+    Indisponivel: {description: Serviço indisponível; resposta do BFF sem detalhes internos}

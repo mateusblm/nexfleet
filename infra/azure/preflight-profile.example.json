@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 3,
+  "environmentName": "homolog",
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "location": "substitua",
+  "staticWebLocation": "substitua",
+  "resourcePrefix": "nexfleet",
+  "resourceGroupName": "rg-nexfleet-homolog",
+  "monthlyBudgetAmount": 0,
+  "billingCurrency": "BRL",
+  "budgetAlertEmails": [
+    "SUBSTITUA_PELO_EMAIL"
+  ],
+  "notificationRecipientEmail": "",
+  "budgetThresholdPercent": [
+    50,
+    80,
+    100
+  ],
+  "approvals": {
+    "billingScopeChecked": false,
+    "spendingProtectionReviewed": false,
+    "budgetConfigured": false,
+    "paidResourcesApproved": false,
+    "dataRegionApproved": false,
+    "quotaReviewed": false,
+    "backupPolicyApproved": false,
+    "notificationProviderApproved": false
+  }
+}

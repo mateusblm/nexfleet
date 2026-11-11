@@ -1,0 +1,107 @@
+openapi: 3.1.0
+info:
+  title: NexFleet — veículos para a interface web
+  version: 0.4.0
+paths:
+  /api/v1/veiculos:
+    get:
+      operationId: listarVeiculos
+      summary: Lista veículos, opcionalmente por status
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/Status' } }
+        - { name: pagina, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: tamanho, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Página de veículos
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Veiculo' } }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Perfil sem acesso à Frota }
+    post:
+      operationId: cadastrarVeiculo
+      summary: Cadastra um veículo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntradaVeiculo' }
+      responses:
+        '201':
+          description: Veículo criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Veiculo' }
+        '409': { description: Placa já cadastrada }
+        '422': { description: Dados inválidos }
+  /api/v1/veiculos/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: consultarVeiculo
+      summary: Consulta um veículo
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Veículo encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Veiculo' }
+        '404': { description: Veículo não encontrado }
+    put:
+      operationId: atualizarVeiculo
+      summary: Atualiza o cadastro mestre do veículo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntradaVeiculo' }
+      responses:
+        '200':
+          description: Veículo atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Veiculo' }
+        '404': { description: Veículo não encontrado }
+        '409': { description: Placa já cadastrada }
+        '422': { description: Dados inválidos }
+    delete:
+      operationId: inativarVeiculo
+      summary: Inativa o veículo sem apagar seu cadastro
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Veículo inativado }
+        '404': { description: Veículo não encontrado }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Status:
+      type: string
+      enum: [DISPONIVEL, EM_USO, EM_MANUTENCAO, INATIVO]
+    EntradaVeiculo:
+      type: object
+      additionalProperties: false
+      required: [placa, marca, modelo, ano, tipo, quilometragem, status, dataAquisicao]
+      properties:
+        placa: { type: string, minLength: 1, maxLength: 10 }
+        marca: { type: string, minLength: 1, maxLength: 80 }
+        modelo: { type: string, minLength: 1, maxLength: 80 }
+        ano: { type: integer, minimum: 1886, maximum: 9999 }
+        tipo: { type: string, minLength: 1, maxLength: 40 }
+        quilometragem: { type: integer, format: int64, minimum: 0 }
+        status: { $ref: '#/components/schemas/Status' }
+        dataAquisicao: { type: string, format: date }
+    Veiculo:
+      allOf:
+        - { $ref: '#/components/schemas/EntradaVeiculo' }
+        - type: object
+          required: [id, criadoEm, atualizadoEm]
+          properties:
+            id: { type: string, format: uuid }
+            criadoEm: { type: string, format: date-time }
+            atualizadoEm: { type: string, format: date-time }

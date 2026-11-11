@@ -1,0 +1,39 @@
+{
+  "folders": [
+    {
+      "name": "NexFleet",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.encoding": "utf8",
+    "files.exclude": {
+      "**/target": true,
+      "**/node_modules": true,
+      "**/dist": true
+    },
+    "search.exclude": {
+      "**/target": true,
+      "**/node_modules": true,
+      ".tmp": true,
+      "tmp": true,
+      "output": true
+    }
+  },
+  "extensions": {
+    "recommendations": ["vscjava.vscode-java-pack"]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "NexFleet: verificar projeto completo",
+        "type": "shell",
+        "command": "./scripts/Test-Project.ps1",
+        "options": { "cwd": "${workspaceFolder}" },
+        "group": { "kind": "build", "isDefault": true },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 2,
+  "expectedResourceCount": 22,
+  "resources": [
+    {
+      "component": "Container Apps Environment",
+      "namespace": "Microsoft.App",
+      "resourceType": "managedEnvironments",
+      "regional": true
+    },
+    {
+      "component": "Container Apps",
+      "namespace": "Microsoft.App",
+      "resourceType": "containerApps",
+      "regional": true
+    },
+    {
+      "component": "Virtual Network",
+      "namespace": "Microsoft.Network",
+      "resourceType": "virtualNetworks",
+      "regional": true
+    },
+    {
+      "component": "Private DNS Zone",
+      "namespace": "Microsoft.Network",
+      "resourceType": "privateDnsZones",
+      "regional": false
+    },
+    {
+      "component": "Private DNS VNet link",
+      "namespace": "Microsoft.Network",
+      "resourceType": "privateDnsZones/virtualNetworkLinks",
+      "regional": false
+    },
+    {
+      "component": "Container Registry",
+      "namespace": "Microsoft.ContainerRegistry",
+      "resourceType": "registries",
+      "regional": true
+    },
+    {
+      "component": "PostgreSQL Flexible Server",
+      "namespace": "Microsoft.DBforPostgreSQL",
+      "resourceType": "flexibleServers",
+      "regional": true
+    },
+    {
+      "component": "Key Vault",
+      "namespace": "Microsoft.KeyVault",
+      "resourceType": "vaults",
+      "regional": true
+    },
+    {
+      "component": "Application Insights",
+      "namespace": "Microsoft.Insights",
+      "resourceType": "components",
+      "regional": true
+    },
+    {
+      "component": "Log Analytics",
+      "namespace": "Microsoft.OperationalInsights",
+      "resourceType": "workspaces",
+      "regional": true
+    },
+    {
+      "component": "Storage Account",
+      "namespace": "Microsoft.Storage",
+      "resourceType": "storageAccounts",
+      "regional": true
+    },
+    {
+      "component": "Static Web Apps",
+      "namespace": "Microsoft.Web",
+      "resourceType": "staticSites",
+      "regional": true,
+      "locationProfileField": "staticWebLocation"
+    },
+    {
+      "component": "Function App",
+      "namespace": "Microsoft.Web",
+      "resourceType": "sites",
+      "regional": true
+    },
+    {
+      "component": "Functions hosting plan",
+      "namespace": "Microsoft.Web",
+      "resourceType": "serverfarms",
+      "regional": true
+    },
+    {
+      "component": "API Management",
+      "namespace": "Microsoft.ApiManagement",
+      "resourceType": "service",
+      "regional": true
+    },
+    {
+      "component": "Service Bus",
+      "namespace": "Microsoft.ServiceBus",
+      "resourceType": "namespaces",
+      "regional": true
+    },
+    {
+      "component": "Managed Identity",
+      "namespace": "Microsoft.ManagedIdentity",
+      "resourceType": "userAssignedIdentities",
+      "regional": true
+    },
+    {
+      "component": "Role assignments",
+      "namespace": "Microsoft.Authorization",
+      "resourceType": "roleAssignments",
+      "regional": false
+    },
+    {
+      "component": "Communication Services",
+      "namespace": "Microsoft.Communication",
+      "resourceType": "communicationServices",
+      "regional": false
+    },
+    {
+      "component": "Email Communication Services",
+      "namespace": "Microsoft.Communication",
+      "resourceType": "emailServices",
+      "regional": false
+    },
+    {
+      "component": "Email domain (Azure managed)",
+      "namespace": "Microsoft.Communication",
+      "resourceType": "emailServices/domains",
+      "regional": false
+    },
+    {
+      "component": "Cost budget",
+      "namespace": "Microsoft.Consumption",
+      "resourceType": "budgets",
+      "regional": false
+    }
+  ]
+}

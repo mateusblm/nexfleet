@@ -1,0 +1,71 @@
+openapi: 3.1.0
+info:
+  title: NexFleet — Abastecimentos
+  version: 1.0.0
+  description: API web publicada pelo Gateway e BFF para registros imutáveis de abastecimento.
+paths:
+  /api/v1/abastecimentos:
+    get:
+      operationId: listarAbastecimentos
+      summary: Lista o histórico de abastecimentos
+      parameters:
+        - { name: veiculoId, in: query, schema: { type: string, format: uuid } }
+        - { name: pagina, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: tamanho, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Histórico retornado
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Abastecimento' } }
+        '400': { description: Paginação ou identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Perfil sem acesso a Operações }
+        '503': { description: Serviço indisponível }
+    post:
+      operationId: registrarAbastecimento
+      summary: Registra um abastecimento e atualiza o hodômetro de forma atômica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NovoAbastecimento' }
+      responses:
+        '201':
+          description: Abastecimento registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Abastecimento' }
+        '400': { description: JSON inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Perfil sem acesso a Operações }
+        '404': { description: Veículo ou motorista não encontrado }
+        '409': { description: Conflito com outro registro }
+        '422': { description: Vínculo ausente, referência inativa ou quilometragem regressiva }
+        '503': { description: Serviço indisponível }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    NovoAbastecimento:
+      type: object
+      additionalProperties: false
+      required: [veiculoId, motoristaId, realizadoEm, combustivel, litros, valorTotal, quilometragem]
+      properties:
+        veiculoId: { type: string, format: uuid }
+        motoristaId: { type: string, format: uuid }
+        realizadoEm: { type: string, format: date-time }
+        combustivel: { type: string, minLength: 1, maxLength: 40 }
+        litros: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+        valorTotal: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+        quilometragem: { type: integer, format: int64, minimum: 1 }
+    Abastecimento:
+      allOf:
+        - { $ref: '#/components/schemas/NovoAbastecimento' }
+        - type: object
+          required: [id, criadoEm]
+          properties:
+            id: { type: string, format: uuid }
+            criadoEm: { type: string, format: date-time }
+security:
+  - bearerAuth: []

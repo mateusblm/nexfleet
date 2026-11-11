@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: NexFleet - consulta tecnica da Sprint 0
+  version: 1.0.0
+  description: Contrato local; nao oferece login ou operacoes de negocio.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/ambiente:
+    get:
+      operationId: consultarAmbiente
+      summary: Consulta os quatro servicos por meio do Gateway e BFF.
+      responses:
+        '200':
+          description: Todos os servicos e bancos responderam.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ambiente'
+        '503':
+          description: Pelo menos um servico ou banco esta indisponivel.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ambiente'
+components:
+  schemas:
+    Ambiente:
+      type: object
+      required: [application, stage, status, services]
+      properties:
+        application:
+          type: string
+          enum: [NexFleet]
+        stage:
+          type: string
+          enum: [sprint-0]
+        status:
+          type: string
+          enum: [UP, DEGRADED]
+        services:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            type: object
+            required: [name, status]
+            properties:
+              name:
+                type: string
+                enum: [identidade, frota, operacoes, indicadores]
+              status:
+                type: string
+                enum: [UP, DOWN]

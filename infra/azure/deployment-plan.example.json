@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "environmentName": "homolog",
+  "template": "infra/azure/main.bicep",
+  "deploymentAuthorized": false,
+  "whatIfAuthorized": false,
+  "messagingDecision": "pending",
+  "plannedSkus": {
+    "apiManagement": "Consumption",
+    "containerRegistry": "Basic",
+    "functionApp": "FlexConsumption-FC1",
+    "postgresql": "Burstable-Standard_B1ms",
+    "serviceBus": "Standard",
+    "staticWebApp": "Free",
+    "storage": "Standard_LRS"
+  },
+  "safety": {
+    "containsSecrets": false,
+    "deployCommandProvided": false,
+    "requiresConnectedPreflight": true,
+    "requiresWhatIfReview": true
+  }
+}

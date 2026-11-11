@@ -1,0 +1,281 @@
+name: nexfleet-sprint0
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: infra/java/Dockerfile
+      args: { SERVICE: gateway }
+    ports: ["127.0.0.1:${GATEWAY_PORT:-8080}:8080"]
+    environment:
+      BFF_URL: http://bff:8080
+    networks: [application]
+    depends_on:
+      bff: { condition: service_healthy }
+  bff:
+    build:
+      context: .
+      dockerfile: infra/java/Dockerfile
+      args: { SERVICE: bff }
+    environment:
+      IDENTIDADE_URL: http://identidade:8080
+      FROTA_URL: http://frota:8080
+      OPERACOES_URL: http://operacoes:8080
+      INDICADORES_URL: http://indicadores:8080
+    networks: [application]
+    depends_on:
+      identidade: { condition: service_healthy }
+      frota: { condition: service_healthy }
+      operacoes: { condition: service_healthy }
+      indicadores: { condition: service_healthy }
+  identidade:
+    build:
+      context: .
+      dockerfile: infra/java/Dockerfile
+      args: { SERVICE: identidade }
+    environment:
+      DB_URL: jdbc:postgresql://identidade-db:5432/identidade
+      JWT_SECRET: ${JWT_SECRET:?Gere JWT_SECRET conforme Aula 3}
+      DB_USER: identidade
+      DB_PASSWORD: ${IDENTIDADE_DB_PASSWORD:?Defina IDENTIDADE_DB_PASSWORD}
+    networks: [application, identidade-data]
+    depends_on:
+      identidade-db: { condition: service_healthy }
+  identidade-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: identidade
+      POSTGRES_USER: identidade
+      POSTGRES_PASSWORD: ${IDENTIDADE_DB_PASSWORD:?Defina IDENTIDADE_DB_PASSWORD}
+    volumes: [identidade-pg18:/var/lib/postgresql]
+    networks: [identidade-data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U identidade -d identidade"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  frota:
+    build:
+      context: .
+      dockerfile: infra/java/Dockerfile
+      args: { SERVICE: frota }
+    environment:
+      DB_URL: jdbc:postgresql://frota-db:5432/frota
+      DB_USER: frota
+      DB_PASSWORD: ${FROTA_DB_PASSWORD:?Defina FROTA_DB_PASSWORD}
+      IDENTIDADE_URL: http://identidade:8080
+    networks: [application, frota-data]
+    depends_on:
+      frota-db: { condition: service_healthy }
+  frota-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: frota
+      POSTGRES_USER: frota
+      POSTGRES_PASSWORD: ${FROTA_DB_PASSWORD:?Defina FROTA_DB_PASSWORD}
+    volumes: [frota-pg18:/var/lib/postgresql]
+    networks: [frota-data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frota -d frota"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  operacoes:
+    build:
+      context: .
+      dockerfile: infra/java/Dockerfile
+      args: { SERVICE: operacoes }
+    environment:
+      DB_URL: jdbc:postgresql://operacoes-db:5432/operacoes
+      DB_USER: operacoes
+      DB_PASSWORD: ${OPERACOES_DB_PASSWORD:?Defina OPERACOES_DB_PASSWORD}
+      IDENTIDADE_URL: http://identidade:8080
+      FROTA_URL: http://frota:8080
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-nexfleet}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+    networks: [application, operacoes-data]
+    depends_on:
+      operacoes-db: { condition: service_healthy }
+      frota: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+  operacoes-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: operacoes
+      POSTGRES_USER: operacoes
+      POSTGRES_PASSWORD: ${OPERACOES_DB_PASSWORD:?Defina OPERACOES_DB_PASSWORD}
+    volumes: [operacoes-pg18:/var/lib/postgresql]
+    networks: [operacoes-data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U operacoes -d operacoes"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  indicadores:
+    build:
+      context: .
+      dockerfile: infra/java/Dockerfile
+      args: { SERVICE: indicadores }
+    environment:
+      DB_URL: jdbc:postgresql://indicadores-db:5432/indicadores
+      DB_USER: indicadores
+      DB_PASSWORD: ${INDICADORES_DB_PASSWORD:?Defina INDICADORES_DB_PASSWORD}
+      IDENTIDADE_URL: http://identidade:8080
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-nexfleet}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+    networks: [application, indicadores-data]
+    depends_on:
+      indicadores-db: { condition: service_healthy }
+      identidade: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+  indicadores-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: indicadores
+      POSTGRES_USER: indicadores
+      POSTGRES_PASSWORD: ${INDICADORES_DB_PASSWORD:?Defina INDICADORES_DB_PASSWORD}
+    volumes: [indicadores-pg18:/var/lib/postgresql]
+    networks: [indicadores-data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U indicadores -d indicadores"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  notificar-abastecimento:
+    build:
+      context: .
+      dockerfile: infra/azure-functions-java/Dockerfile
+    environment:
+      AzureWebJobsStorage: >-
+        DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
+      FUNCTIONS_WORKER_RUNTIME: java
+      AzureWebJobs.NotificarAbastecimentoServiceBus.Disabled: "true"
+      RabbitMqConnection: ${RABBITMQ_CONNECTION:?Execute Initialize-Local.ps1}
+      DB_URL: jdbc:postgresql://notificacoes-db:5432/notificacoes
+      DB_USER: notificacoes
+      DB_PASSWORD: ${NOTIFICACOES_DB_PASSWORD:?Defina NOTIFICACOES_DB_PASSWORD}
+    networks: [application, notificacoes-data]
+    depends_on:
+      azurite: { condition: service_healthy }
+      notificacoes-migrations: { condition: service_completed_successfully }
+      rabbitmq-topology: { condition: service_completed_successfully }
+  notificacoes-migrations:
+    image: flyway/flyway:13.12.0-alpine
+    command:
+      - -url=jdbc:postgresql://notificacoes-db:5432/notificacoes
+      - -user=notificacoes
+      - -password=${NOTIFICACOES_DB_PASSWORD:?Defina NOTIFICACOES_DB_PASSWORD}
+      - -schemas=notificacoes
+      - -baselineOnMigrate=true
+      - -locations=filesystem:/flyway/sql
+      - migrate
+    volumes:
+      - ./functions/notificar-abastecimento/src/main/resources/db/migration:/flyway/sql:ro
+    networks: [notificacoes-data]
+    depends_on:
+      notificacoes-db: { condition: service_healthy }
+    restart: "no"
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.37.0
+    command:
+      - azurite
+      - --blobHost
+      - 0.0.0.0
+      - --queueHost
+      - 0.0.0.0
+      - --tableHost
+      - 0.0.0.0
+      - --location
+      - /data
+      - --disableTelemetry
+    volumes: [azurite-data:/data]
+    networks: [application]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "const s=require('net').connect(10000,'127.0.0.1');s.on('connect',()=>process.exit(0));s.on('error',()=>process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  notificacoes-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: notificacoes
+      POSTGRES_USER: notificacoes
+      POSTGRES_PASSWORD: ${NOTIFICACOES_DB_PASSWORD:?Defina NOTIFICACOES_DB_PASSWORD}
+    volumes: [notificacoes-pg18:/var/lib/postgresql]
+    networks: [notificacoes-data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notificacoes -d notificacoes"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports: ["127.0.0.1:15672:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-nexfleet}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+    volumes: [eventos-rabbitmq:/var/lib/rabbitmq]
+    networks: [application]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  rabbitmq-topology:
+    image: rabbitmq:4-management-alpine
+    entrypoint: ["/bin/sh", "/topology/Initialize-Topology.sh"]
+    environment:
+      RABBITMQADMIN_TARGET_HOST: rabbitmq
+      RABBITMQADMIN_USERNAME: ${RABBITMQ_USER:-nexfleet}
+      RABBITMQADMIN_PASSWORD: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+      RABBITMQADMIN_NON_INTERACTIVE_MODE: "true"
+    volumes:
+      - ./infra/rabbitmq/Initialize-Topology.sh:/topology/Initialize-Topology.sh:ro
+    networks: [application]
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    restart: "no"
+  prometheus:
+    image: prom/prometheus:v3.13.5
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    ports: ["127.0.0.1:9090:9090"]
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [application]
+    depends_on:
+      gateway: { condition: service_healthy }
+      bff: { condition: service_healthy }
+      identidade: { condition: service_healthy }
+      frota: { condition: service_healthy }
+      operacoes: { condition: service_healthy }
+      indicadores: { condition: service_healthy }
+networks:
+  application:
+  identidade-data:
+    internal: true
+  frota-data:
+    internal: true
+  operacoes-data:
+    internal: true
+  indicadores-data:
+    internal: true
+  notificacoes-data:
+    internal: true
+volumes:
+  identidade-pg18:
+  frota-pg18:
+  operacoes-pg18:
+  indicadores-pg18:
+  notificacoes-pg18:
+  eventos-rabbitmq:
+  azurite-data:
+  prometheus-data:

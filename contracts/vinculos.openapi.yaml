@@ -1,0 +1,81 @@
+openapi: 3.1.0
+info:
+  title: NexFleet — vínculos para a interface web
+  version: 0.6.0
+paths:
+  /api/v1/vinculos:
+    get:
+      operationId: listarVinculos
+      summary: Lista o histórico de vínculos
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: veiculoId, in: query, schema: { type: string, format: uuid } }
+        - { name: pagina, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: tamanho, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Página do histórico
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Vinculo' } }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Perfil sem acesso à Frota }
+    post:
+      operationId: iniciarVinculo
+      summary: Inicia um vínculo
+      description: Exige veículo não inativo, motorista ativo, CNH válida e ausência de vínculo ativo para o veículo.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntradaVinculo' }
+      responses:
+        '201':
+          description: Vínculo iniciado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vinculo' }
+        '404': { description: Veículo ou motorista não encontrado }
+        '409': { description: Veículo já possui vínculo ativo }
+        '422': { description: Referência inativa ou CNH vencida }
+  /api/v1/vinculos/{id}/encerramento:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      operationId: encerrarVinculo
+      summary: Encerra um vínculo no horário do servidor
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Vínculo encerrado e preservado no histórico
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vinculo' }
+        '404': { description: Vínculo não encontrado }
+        '409': { description: Vínculo já encerrado }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    EntradaVinculo:
+      type: object
+      additionalProperties: false
+      required: [veiculoId, motoristaId]
+      properties:
+        veiculoId: { type: string, format: uuid }
+        motoristaId: { type: string, format: uuid }
+    Vinculo:
+      type: object
+      additionalProperties: false
+      required: [id, veiculoId, veiculoPlaca, motoristaId, motoristaNome, inicio, criadoEm, atualizadoEm]
+      properties:
+        id: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        veiculoPlaca: { type: string }
+        motoristaId: { type: string, format: uuid }
+        motoristaNome: { type: string }
+        inicio: { type: string, format: date-time }
+        fim: { type: [string, 'null'], format: date-time }
+        criadoEm: { type: string, format: date-time }
+        atualizadoEm: { type: string, format: date-time }

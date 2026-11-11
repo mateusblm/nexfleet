@@ -1,0 +1,17 @@
+**
+!services/
+!services/*/
+!services/*/pom.xml
+!services/*/src/
+!services/*/src/**
+!infra/
+!infra/java/
+!infra/java/Dockerfile
+!infra/azure-functions-java/
+!infra/azure-functions-java/Dockerfile
+!functions/
+!functions/notificar-abastecimento/
+!functions/notificar-abastecimento/pom.xml
+!functions/notificar-abastecimento/host.json
+!functions/notificar-abastecimento/src/
+!functions/notificar-abastecimento/src/**

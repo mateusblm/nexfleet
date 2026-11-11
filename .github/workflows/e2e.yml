@@ -1,0 +1,63 @@
+name: E2E - NexFleet
+
+on:
+  push:
+    paths:
+      - 'services/**'
+      - 'functions/**'
+      - 'contracts/**'
+      - 'quality/**'
+      - 'infra/**'
+      - 'scripts/**'
+      - 'compose*.yaml'
+      - '.env.sprint0.example'
+      - '.github/workflows/e2e.yml'
+  pull_request:
+    paths:
+      - 'services/**'
+      - 'functions/**'
+      - 'contracts/**'
+      - 'quality/**'
+      - 'infra/**'
+      - 'scripts/**'
+      - 'compose*.yaml'
+      - '.env.sprint0.example'
+      - '.github/workflows/e2e.yml'
+
+jobs:
+  integrated-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Criar configuração efêmera
+        shell: pwsh
+        run: |
+          ./scripts/Initialize-Local.ps1
+          $content = [IO.File]::ReadAllText('.env.sprint0')
+          $content = $content.Replace(
+            'LOCAL_USER_PASSWORD=SUBSTITUA_POR_UMA_SENHA_LOCAL_FORTE',
+            'LOCAL_USER_PASSWORD=NexFleet-CI-2026!OnlyTest')
+          [IO.File]::WriteAllText(
+            '.env.sprint0', $content, [Text.UTF8Encoding]::new($false))
+      - name: Construir, provisionar e verificar o ambiente
+        shell: pwsh
+        run: ./scripts/Start-Local.ps1 -ProvisionUser
+      - name: Executar fluxo ponta a ponta
+        shell: pwsh
+        run: ./scripts/Test-E2E.ps1 -IncludePerformance -IncludeRecovery
+      - name: Exibir logs em caso de falha
+        if: failure()
+        run: >-
+          docker compose --env-file .env.sprint0
+          -f compose.sprint0.yaml -f compose.jwt-rsa.yaml
+          logs --no-color --tail 200
+      - name: Remover ambiente efêmero
+        if: always()
+        run: >-
+          docker compose --env-file .env.sprint0
+          -f compose.sprint0.yaml -f compose.jwt-rsa.yaml
+          down --volumes --remove-orphans

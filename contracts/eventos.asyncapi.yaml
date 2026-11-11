@@ -1,0 +1,83 @@
+asyncapi: 3.0.0
+info:
+  title: NexFleet — Eventos de Operações
+  version: 1.0.0
+  description: Contratos dos eventos persistidos na outbox e publicados no RabbitMQ.
+defaultContentType: application/json
+channels:
+  abastecimentoRegistrado:
+    address: operacoes.abastecimento.registrado.v1
+    messages:
+      AbastecimentoRegistrado:
+        $ref: '#/components/messages/AbastecimentoRegistrado'
+  manutencaoRegistrada:
+    address: operacoes.manutencao.registrada.v1
+    messages:
+      ManutencaoRegistrada:
+        $ref: '#/components/messages/ManutencaoRegistrada'
+operations:
+  publicarAbastecimentoRegistrado:
+    action: send
+    channel: { $ref: '#/channels/abastecimentoRegistrado' }
+    messages:
+      - { $ref: '#/channels/abastecimentoRegistrado/messages/AbastecimentoRegistrado' }
+  publicarManutencaoRegistrada:
+    action: send
+    channel: { $ref: '#/channels/manutencaoRegistrada' }
+    messages:
+      - { $ref: '#/channels/manutencaoRegistrada/messages/ManutencaoRegistrada' }
+components:
+  messages:
+    AbastecimentoRegistrado:
+      name: AbastecimentoRegistrado.v1
+      title: Abastecimento persistido
+      headers: { $ref: '#/components/schemas/CabecalhosEvento' }
+      payload: { $ref: '#/components/schemas/AbastecimentoRegistrado' }
+    ManutencaoRegistrada:
+      name: ManutencaoRegistrada.v1
+      title: Manutenção persistida
+      headers: { $ref: '#/components/schemas/CabecalhosEvento' }
+      payload: { $ref: '#/components/schemas/ManutencaoRegistrada' }
+  schemas:
+    CabecalhosEvento:
+      type: object
+      required: [eventoId, eventoTipo, eventoVersao, agregadoTipo, agregadoId, ocorridoEm, X-Correlation-ID]
+      properties:
+        eventoId: { type: string, format: uuid }
+        eventoTipo: { type: string, enum: [AbastecimentoRegistrado, ManutencaoRegistrada] }
+        eventoVersao: { type: integer, const: 1 }
+        agregadoTipo: { type: string, enum: [ABASTECIMENTO, MANUTENCAO] }
+        agregadoId: { type: string, format: uuid }
+        ocorridoEm: { type: string, format: date-time }
+        X-Correlation-ID: { type: string, format: uuid }
+    AbastecimentoRegistrado:
+      type: object
+      additionalProperties: false
+      required: [eventoId, abastecimentoId, veiculoId, motoristaId, realizadoEm, combustivel, litros, valorTotal, quilometragem, correlationId]
+      properties:
+        eventoId: { type: string, format: uuid }
+        abastecimentoId: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        motoristaId: { type: string, format: uuid }
+        realizadoEm: { type: string, format: date-time }
+        combustivel: { type: string, minLength: 1, maxLength: 40 }
+        litros: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+        valorTotal: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+        quilometragem: { type: integer, format: int64, minimum: 1 }
+        correlationId: { type: string, format: uuid }
+    ManutencaoRegistrada:
+      type: object
+      additionalProperties: false
+      required: [eventoId, manutencaoId, veiculoId, tipo, realizadaEm, quilometragem, descricao, oficina, valor, correlationId]
+      properties:
+        eventoId: { type: string, format: uuid }
+        manutencaoId: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        tipo: { type: string, enum: [PREVENTIVA, CORRETIVA, REVISAO, TROCA_OLEO, TROCA_PNEUS, OUTROS] }
+        realizadaEm: { type: string, format: date }
+        quilometragem: { type: integer, format: int64, minimum: 0 }
+        descricao: { type: string, maxLength: 500 }
+        oficina: { type: string, maxLength: 150 }
+        valor: { type: number, minimum: 0, multipleOf: 0.01 }
+        proximaManutencao: { type: [string, 'null'], format: date }
+        correlationId: { type: string, format: uuid }

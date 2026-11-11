@@ -1,0 +1,8 @@
+# Override opcional e exclusivo para estudo local. Não contém senha padrão.
+services:
+  identidade:
+    environment:
+      SPRING_PROFILES_ACTIVE: local-seed
+      LOCAL_USER_EMAIL: ${LOCAL_USER_EMAIL:?Defina LOCAL_USER_EMAIL}
+      LOCAL_USER_PASSWORD: ${LOCAL_USER_PASSWORD:?Defina LOCAL_USER_PASSWORD}
+      LOCAL_USER_PROFILE: ${LOCAL_USER_PROFILE:-GESTOR_FROTA}

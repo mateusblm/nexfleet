@@ -1,0 +1,25 @@
+name: Frontends - NexFleet
+on:
+  push:
+    paths: ['frontend/**', 'microfrontends/**', '.github/workflows/frontend.yml']
+  pull_request:
+    paths: ['frontend/**', 'microfrontends/**', '.github/workflows/frontend.yml']
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [frontend, microfrontends/frota, microfrontends/operacoes, microfrontends/painel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.project }}
+      - run: npm test
+        working-directory: ${{ matrix.project }}
+      - run: npm run build
+        working-directory: ${{ matrix.project }}

@@ -1,0 +1,44 @@
+# Ativação explícita. Não gere nem distribua a chave privada com o código.
+services:
+  identidade-jwt-init:
+    image: alpine:3.22
+    user: "0:0"
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        cp /run/secrets/source.pem /run/nexfleet/identidade-jwt.pem &&
+        chown 10001:0 /run/nexfleet/identidade-jwt.pem &&
+        chmod 0400 /run/nexfleet/identidade-jwt.pem
+    secrets:
+      - source: identidade-jwt
+        target: source.pem
+    volumes:
+      - identidade-jwt-runtime:/run/nexfleet
+    restart: "no"
+  bff:
+    environment:
+      SPRING_PROFILES_ACTIVE: jwt-rsa
+  identidade:
+    environment:
+      SPRING_PROFILES_ACTIVE: ${IDENTIDADE_PROFILES:-jwt-rsa}
+      AUTH_JWT_PRIVATE_KEY: file:/run/secrets/identidade-jwt.pem
+    volumes:
+      - identidade-jwt-runtime:/run/secrets:ro
+    depends_on:
+      identidade-jwt-init:
+        condition: service_completed_successfully
+  frota:
+    environment:
+      SPRING_PROFILES_ACTIVE: jwt-rsa
+  operacoes:
+    environment:
+      SPRING_PROFILES_ACTIVE: jwt-rsa
+  indicadores:
+    environment:
+      SPRING_PROFILES_ACTIVE: jwt-rsa
+secrets:
+  identidade-jwt:
+    file: ./.secrets/identidade-jwt.pem
+volumes:
+  identidade-jwt-runtime:

@@ -1,0 +1,18 @@
+# Acesso opcional aos bancos por ferramentas locais, como pgAdmin e DBeaver.
+# Todas as portas ficam restritas ao loopback e não são publicadas na rede local.
+services:
+  identidade-db:
+    ports:
+      - "127.0.0.1:15432:5432"
+  frota-db:
+    ports:
+      - "127.0.0.1:15433:5432"
+  operacoes-db:
+    ports:
+      - "127.0.0.1:15434:5432"
+  indicadores-db:
+    ports:
+      - "127.0.0.1:15435:5432"
+  notificacoes-db:
+    ports:
+      - "127.0.0.1:15436:5432"

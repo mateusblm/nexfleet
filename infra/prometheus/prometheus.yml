@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: nexfleet-java
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - gateway:8080
+          - bff:8080
+          - identidade:8080
+          - frota:8080
+          - operacoes:8080
+          - indicadores:8080

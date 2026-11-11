@@ -1,0 +1,99 @@
+openapi: 3.1.0
+info:
+  title: NexFleet — motoristas para a interface web
+  version: 0.5.0
+paths:
+  /api/v1/motoristas:
+    get:
+      operationId: listarMotoristas
+      summary: Lista motoristas, opcionalmente por status
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/Status' } }
+        - { name: pagina, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: tamanho, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Página de motoristas
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Motorista' } }
+        '401': { description: Token ausente ou inválido }
+        '403': { description: Perfil sem acesso à Frota }
+    post:
+      operationId: cadastrarMotorista
+      summary: Cadastra um motorista
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntradaMotorista' }
+      responses:
+        '201':
+          description: Motorista criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Motorista' }
+        '409': { description: CPF ou CNH já cadastrado }
+        '422': { description: Dados inválidos }
+  /api/v1/motoristas/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: consultarMotorista
+      summary: Consulta um motorista
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Motorista encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Motorista' }
+        '404': { description: Motorista não encontrado }
+    put:
+      operationId: atualizarMotorista
+      summary: Atualiza o cadastro do motorista
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntradaMotorista' }
+      responses:
+        '200':
+          description: Motorista atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Motorista' }
+        '404': { description: Motorista não encontrado }
+        '409': { description: CPF ou CNH já cadastrado }
+        '422': { description: Dados inválidos }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Status:
+      type: string
+      enum: [ATIVO, INATIVO]
+    EntradaMotorista:
+      type: object
+      additionalProperties: false
+      required: [nome, cpf, cnh, categoria, validadeCnh, telefone, status]
+      properties:
+        nome: { type: string, minLength: 1, maxLength: 120 }
+        cpf: { type: string, pattern: '^[0-9.\-]{11,14}$' }
+        cnh: { type: string, pattern: '^[0-9]{11}$' }
+        categoria: { type: string, minLength: 1, maxLength: 5 }
+        validadeCnh: { type: string, format: date }
+        telefone: { type: string, minLength: 1, maxLength: 30 }
+        status: { $ref: '#/components/schemas/Status' }
+    Motorista:
+      allOf:
+        - { $ref: '#/components/schemas/EntradaMotorista' }
+        - type: object
+          required: [id, criadoEm, atualizadoEm]
+          properties:
+            id: { type: string, format: uuid }
+            criadoEm: { type: string, format: date-time }
+            atualizadoEm: { type: string, format: date-time }

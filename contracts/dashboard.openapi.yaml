@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: NexFleet Dashboard Web API
+  version: 1.0.0
+paths:
+  /api/v1/dashboard:
+    get:
+      operationId: consultarDashboard
+      summary: Consolida indicadores financeiros e a situação atual da frota
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard calculado a partir dos registros válidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          description: Token ausente ou inválido
+        "403":
+          description: Perfil sem permissão
+        "503":
+          description: Um serviço necessário está indisponível
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Dashboard:
+      type: object
+      required:
+        - gastoAbastecimentos
+        - gastoManutencoes
+        - gastoTotal
+        - quantidadeAbastecimentos
+        - quantidadeManutencoes
+        - totalVeiculos
+        - veiculosDisponiveis
+        - veiculosEmUso
+        - veiculosEmManutencao
+        - veiculosInativos
+        - proximasManutencoes
+      properties:
+        gastoAbastecimentos: { type: number, multipleOf: 0.01 }
+        gastoManutencoes: { type: number, multipleOf: 0.01 }
+        gastoTotal: { type: number, multipleOf: 0.01 }
+        quantidadeAbastecimentos: { type: integer, minimum: 0 }
+        quantidadeManutencoes: { type: integer, minimum: 0 }
+        totalVeiculos: { type: integer, minimum: 0 }
+        veiculosDisponiveis: { type: integer, minimum: 0 }
+        veiculosEmUso: { type: integer, minimum: 0 }
+        veiculosEmManutencao: { type: integer, minimum: 0 }
+        veiculosInativos: { type: integer, minimum: 0 }
+        proximasManutencoes:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/ProximaManutencao"
+    ProximaManutencao:
+      type: object
+      required: [veiculoId, placa, tipo, data]
+      properties:
+        veiculoId: { type: string, format: uuid }
+        placa: { type: string }
+        tipo: { type: string }
+        data: { type: string, format: date }

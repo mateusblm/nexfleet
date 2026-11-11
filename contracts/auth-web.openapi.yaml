@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: NexFleet - autenticação web
+  version: 0.2.0
+  description: Entrada pelo Gateway e BFF; validação de credenciais e token delegada a Identidade.
+paths:
+  /api/v1/auth/login:
+    post:
+      operationId: entrar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, senha]
+              properties:
+                email: {type: string, minLength: 1, maxLength: 254}
+                senha: {type: string, format: password, description: De 1 a 72 bytes UTF-8}
+      responses:
+        '200':
+          description: Token Bearer com Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accessToken, tokenType, expiresIn]
+                properties:
+                  accessToken: {type: string}
+                  tokenType: {type: string, enum: [Bearer]}
+                  expiresIn: {type: integer, minimum: 1, maximum: 900}
+        '400': {description: JSON ou campos inválidos}
+        '401': {description: Credenciais inválidas}
+        '503': {description: Identidade indisponível ou resposta incompatível}
+  /api/v1/auth/me:
+    get:
+      operationId: consultarSessao
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Identificador confirmado em Identidade; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: {type: string, format: uuid}
+                  perfil: {type: string, nullable: true, enum: [ADMINISTRADOR, GESTOR_FROTA], description: Campo aditivo; clientes de versões anteriores podem omiti-lo}
+        '401': {description: Bearer ausente ou inválido}
+        '503': {description: Identidade indisponível ou resposta incompatível}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
