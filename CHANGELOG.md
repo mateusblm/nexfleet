@@ -1,5 +1,18 @@
 # Histórico de entregas
 
+## v1.0.0 — 11/11/2026 (entrega final)
+
+- **Nove repositórios públicos** em `github.com/mateusblm`, criados por `git subtree split` do monorepo com o histórico preservado: guarda-chuva `nexfleet` e `nexfleet-{frontend,gateway,bff,identidade,frota,operacoes,indicadores,function}`. Cada um tem README, build próprio e CI; os de serviço publicam `mateusblm/nexfleet-<svc>` no Docker Hub em tag `v*` (ADR 0042).
+- **Frota no MongoDB** (Atlas M0 na nuvem, `mongo:7.0` local): coleções `veiculos`, `motoristas` e `vinculos`, índices únicos de placa, CPF, CNH e vínculo ativo por veículo; contrato HTTP inalterado; sem JDBC/Flyway (ADR 0039).
+- **Azure SQL com um schema e um usuário contido por serviço** (`identidade`, `operacoes`, `indicadores`, `notificacoes`): migrações Flyway recomeçadas em V1 (T-SQL), `create-schemas=false`, `infra/sqlserver/bootstrap.sql` executado pelo administrador; outbox com `UPDLOCK, READPAST` e hint `INDEX(ix_outbox_pendente)` (ADR 0040).
+- **Function HTTP `calcular-eficiencia`** (consumo médio, custo por km e gasto por veículo e da frota; chave da função; até 10.000 itens) e **`GET /aggregated-data`** no BFF, com retorno parcial por `fontes` e até 4.000 abastecimentos e 4.000 manutenções (ADR 0041). Cartão "Visão consolidada" no Painel.
+- **Swagger UI única** no Gateway (BFF, Frota, Operações, Identidade, Indicadores) e **página AsyncAPI** dos eventos em `/docs/eventos`.
+- **BFF continua em Java/Spring Boot** (ADR 0043).
+- **Homologação com custo mínimo:** sem PostgreSQL, ACR e DNS privado; todos os Container Apps com `minReplicas: 0`; Azure SQL serverless gratuito com `AutoPause`; Service Bus Standard como único custo fixo (ADR 0044).
+- **Execução local** a partir do guarda-chuva: `scripts/iniciar-local.sh`, `compose.yaml` (imagens do Docker Hub) ou `compose.build.yaml` (código dos repositórios irmãos, clonados por `scripts/clonar-tudo.sh`) e `scripts/seed-demo.sh`.
+- **Publicação e smoke:** guia de publicação em bash; `scripts/smoke-publico.sh` passou a frio com 28/28 verificações em 11/11/2026.
+- **Documentação:** ADRs 0039–0044; ADRs de PostgreSQL, ACR e jobs de migração marcadas como substituídas; diagramas C4/UML/DER atualizados; scripts PowerShell e guias do monorepo marcados como legado.
+
 ## v0.30.0 — 11/11/2026
 
 - **Novo — botão Excluir** nas telas de Veículos, Motoristas e Usuários (ADR 0038).
