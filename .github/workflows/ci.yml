@@ -18,10 +18,21 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      # Sem os repositórios irmãos clonados ao lado, a checagem de tabelas e classes do
-      # DER é pulada (Assumptions); contratos, matriz CQ e seções dos diagramas rodam sempre.
+      # A checagem de tabelas e classes do DER lê migrações e fontes dos repositórios
+      # irmãos; clonados aqui, ela nunca é pulada no CI.
+      - name: Clonar repositórios irmãos
+        run: |
+          mkdir -p "$RUNNER_TEMP/repos"
+          for svc in gateway bff identidade frota operacoes indicadores function; do
+            git clone --quiet --depth 1 --branch "${GITHUB_REF_NAME}" \
+              "https://github.com/${GITHUB_REPOSITORY_OWNER}/nexfleet-${svc}.git" \
+              "$RUNNER_TEMP/repos/nexfleet-${svc}" \
+            || git clone --quiet --depth 1 \
+              "https://github.com/${GITHUB_REPOSITORY_OWNER}/nexfleet-${svc}.git" \
+              "$RUNNER_TEMP/repos/nexfleet-${svc}"
+          done
       - name: Contratos e documentação (quality/)
-        run: ./mvnw -B -ntp -f quality/pom.xml verify
+        run: ./mvnw -B -ntp -f quality/pom.xml verify "-Dnexfleet.repos.dir=$RUNNER_TEMP/repos"
       - name: Arquivos compose válidos
         run: |
           docker compose --env-file .env.sprint0.example -f compose.sprint0.yaml config --quiet
