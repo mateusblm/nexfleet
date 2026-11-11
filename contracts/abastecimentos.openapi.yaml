@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: NexFleet — Abastecimentos
-  version: 1.0.0
-  description: API web publicada pelo Gateway e BFF para registros imutáveis de abastecimento.
+  version: 1.1.0
+  description: API web publicada pelo Gateway e BFF para registrar, consultar, corrigir e excluir abastecimentos.
 paths:
   /api/v1/abastecimentos:
     get:
@@ -43,7 +43,60 @@ paths:
         '409': { description: Conflito com outro registro }
         '422': { description: Vínculo ausente, referência inativa ou quilometragem regressiva }
         '503': { description: Serviço indisponível }
+  /api/v1/abastecimentos/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: consultarAbastecimento
+      summary: Consulta um abastecimento pelo id
+      responses:
+        '200':
+          description: Abastecimento encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Abastecimento' }
+        '400': { description: Identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { $ref: '#/components/responses/Erro', description: Perfil sem permissão (somente ADMINISTRADOR ou GESTOR_FROTA) }
+        '404': { $ref: '#/components/responses/Erro', description: Abastecimento não encontrado }
+        '503': { $ref: '#/components/responses/Erro', description: Operações indisponível ou sem resposta no tempo limite }
+    put:
+      operationId: atualizarAbastecimento
+      summary: Corrige combustível, litros, valor e quilometragem; data, veículo e motorista não mudam
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AtualizacaoAbastecimento' }
+      responses:
+        '200':
+          description: Abastecimento atualizado com versao incrementada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Abastecimento' }
+        '400': { description: JSON ou identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { $ref: '#/components/responses/Erro', description: Perfil sem permissão (somente ADMINISTRADOR ou GESTOR_FROTA) }
+        '404': { $ref: '#/components/responses/Erro', description: Abastecimento não encontrado }
+        '422': { $ref: '#/components/responses/Erro', description: Dados inválidos ou quilometragem fora do intervalo entre o abastecimento anterior e o seguinte do veículo }
+        '503': { $ref: '#/components/responses/Erro', description: Operações indisponível ou sem resposta no tempo limite }
+    delete:
+      operationId: excluirAbastecimento
+      summary: Exclui o abastecimento definitivamente e recalcula o hodômetro do veículo
+      responses:
+        '204': { description: Abastecimento excluído }
+        '400': { description: Identificador inválido }
+        '401': { description: Token ausente ou inválido }
+        '403': { $ref: '#/components/responses/Erro', description: Perfil sem permissão (somente ADMINISTRADOR ou GESTOR_FROTA) }
+        '404': { $ref: '#/components/responses/Erro', description: Abastecimento não encontrado }
+        '503': { $ref: '#/components/responses/Erro', description: Operações indisponível ou sem resposta no tempo limite }
 components:
+  responses:
+    Erro:
+      description: Erro com mensagem repassada do Operações
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   schemas:
@@ -59,13 +112,28 @@ components:
         litros: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
         valorTotal: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
         quilometragem: { type: integer, format: int64, minimum: 1 }
+    AtualizacaoAbastecimento:
+      type: object
+      additionalProperties: false
+      required: [combustivel, litros, valorTotal, quilometragem]
+      properties:
+        combustivel: { type: string, minLength: 1, maxLength: 40 }
+        litros: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+        valorTotal: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+        quilometragem: { type: integer, format: int64, minimum: 1 }
     Abastecimento:
       allOf:
         - { $ref: '#/components/schemas/NovoAbastecimento' }
         - type: object
-          required: [id, criadoEm]
+          required: [id, criadoEm, versao]
           properties:
             id: { type: string, format: uuid }
             criadoEm: { type: string, format: date-time }
+            versao: { type: integer, minimum: 1, description: Incrementada a cada edição; começa em 1 }
+    Erro:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
 security:
   - bearerAuth: []
