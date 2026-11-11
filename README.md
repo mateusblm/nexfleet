@@ -3,7 +3,7 @@
 Plataforma de gestão de frotas empresariais em nuvem: veículos, motoristas, vínculos, abastecimentos, manutenções, painel de custos e visão consolidada de eficiência em um só lugar.
 
 [![CI](https://github.com/mateusblm/nexfleet/actions/workflows/ci.yml/badge.svg)](https://github.com/mateusblm/nexfleet/actions/workflows/ci.yml)
-![Versão 1.0.0](https://img.shields.io/badge/vers%C3%A3o-1.0.0-blue)
+![Versão 1.1.0](https://img.shields.io/badge/vers%C3%A3o-1.1.0-blue)
 ![Java 21](https://img.shields.io/badge/Java-21-007396)
 ![Spring Boot 4.1.1](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F)
 ![React 19](https://img.shields.io/badge/React-19.3.1-61DAFB)
@@ -14,7 +14,7 @@ Plataforma de gestão de frotas empresariais em nuvem: veículos, motoristas, v�
 
 ## Visão geral
 
-O NexFleet centraliza a operação de uma frota: cadastro de veículos e motoristas, vínculos com histórico, registro de abastecimentos e manutenções com hodômetro protegido, painel de custos e uma visão consolidada que calcula consumo médio e custo por km de cada veículo e da frota inteira. Cada abastecimento dispara uma notificação por e-mail.
+O NexFleet centraliza a operação de uma frota: cadastro de veículos e motoristas, vínculos com histórico, registro, edição e exclusão de abastecimentos e manutenções com hodômetro protegido, painel de custos e uma visão consolidada que calcula consumo médio e custo por km de cada veículo e da frota inteira. Cada abastecimento dispara uma notificação por e-mail.
 
 O produto é composto por microfrontends, um API Gateway, um BFF, quatro microsserviços com dados isolados e uma Azure Function, integrados por HTTP e por eventos. Este é o repositório **guarda-chuva**: documentação, decisões de arquitetura, contratos, infraestrutura como código (Bicep e Docker Compose), verificação de qualidade e scripts. O código de cada componente vive no próprio repositório.
 
@@ -81,7 +81,7 @@ O NexFleet está organizado em nove repositórios públicos. Cada um tem README,
 |---|---|
 | Acesso | Login com JWT assinado por RSA; perfis **Administrador** e **Gestor de Frota**; gestão de usuários |
 | Frota | Veículos, motoristas e vínculos motorista ↔ veículo com histórico; um vínculo ativo por veículo; inativação e exclusão definitiva apenas sem histórico |
-| Operações | Abastecimentos e manutenções; o hodômetro nunca regride; abastecimento só com vínculo válido |
+| Operações | Abastecimentos e manutenções: registrar, consultar, editar e excluir; o hodômetro nunca regride e é recalculado na edição e na exclusão; abastecimento só com vínculo válido; edição do abastecimento limitada a combustível, litros, valor e quilometragem (entre a do anterior e a do seguinte) ([ADR 0045](docs/adr/0045-edicao-e-exclusao-no-operacoes.md)) |
 | Painel | Gastos, situação da frota e próximas manutenções |
 | Visão consolidada | Consumo médio (km/l), custo por km e gastos por veículo e da frota, com retorno parcial quando uma fonte falha |
 | Notificações | E-mail automático a cada abastecimento, por função serverless |
@@ -114,14 +114,18 @@ Se uma fonte falha, a resposta continua `200`: a seção dela vem vazia e `fonte
 
 ## Eventos
 
-Operações grava cada registro e o evento correspondente na mesma transação (outbox) e um job os publica no broker.
+Operações grava cada registro, edição ou exclusão e o evento correspondente na mesma transação (outbox) e um job os publica no broker. Os eventos levam `versao` por registro ([ADR 0045](docs/adr/0045-edicao-e-exclusao-no-operacoes.md)).
 
 | Evento | Canal | Consumidores |
 |---|---|---|
 | `AbastecimentoRegistrado` v1 | `operacoes.abastecimento.registrado.v1` | Indicadores (painel), Function (e-mail) |
+| `AbastecimentoAtualizado` v1 | `operacoes.abastecimento.atualizado.v1` | Indicadores (painel) |
+| `AbastecimentoExcluido` v1 | `operacoes.abastecimento.excluido.v1` | Indicadores (painel) |
 | `ManutencaoRegistrada` v1 | `operacoes.manutencao.registrada.v1` | Indicadores (painel) |
+| `ManutencaoAtualizada` v1 | `operacoes.manutencao.atualizada.v1` | Indicadores (painel) |
+| `ManutencaoExcluida` v1 | `operacoes.manutencao.excluida.v1` | Indicadores (painel) |
 
-Na nuvem, os eventos trafegam pelo tópico `nexfleet-eventos-v1` do Azure Service Bus (assinaturas `indicadores-v1` e `notificacoes-abastecimentos-v1`); localmente, pelo RabbitMQ, com retry e DLQ. Os consumidores são idempotentes. Contrato em [contracts/eventos.asyncapi.yaml](contracts/eventos.asyncapi.yaml) e na [página AsyncAPI](https://white-mushroom-0cadda010.3.azurestaticapps.net/docs/eventos/).
+Na nuvem, os eventos trafegam pelo tópico `nexfleet-eventos-v1` do Azure Service Bus (assinaturas `indicadores-v1` e `notificacoes-abastecimentos-v1`); localmente, pelo RabbitMQ, com retry e DLQ. Os consumidores são idempotentes; o Indicadores aplica só versões mais novas e mantém a exclusão mesmo com eventos fora de ordem. Contrato em [contracts/eventos.asyncapi.yaml](contracts/eventos.asyncapi.yaml) e na [página AsyncAPI](https://white-mushroom-0cadda010.3.azurestaticapps.net/docs/eventos/).
 
 ## Início rápido local
 
@@ -196,7 +200,7 @@ Toda a infraestrutura está em Bicep (`infra/azure`); o passo a passo da publica
 |---|---|
 | Entender a arquitetura | [docs/ARQUITETURA.md](docs/ARQUITETURA.md) |
 | Diagramas C4, UML e DER | [docs/DIAGRAMAS-ARQUITETURA.md](docs/DIAGRAMAS-ARQUITETURA.md) |
-| Decisões de arquitetura (ADRs) | [docs/adr](docs/adr) |
+| Decisões de arquitetura (ADRs) | [docs/adr](docs/adr) (a mais recente: [ADR 0045](docs/adr/0045-edicao-e-exclusao-no-operacoes.md), edição e exclusão no Operações) |
 | Contratos OpenAPI e AsyncAPI | [contracts/](contracts/) |
 | Publicar na Azure | [docs/GUIA-INFRAESTRUTURA-AZURE-BICEP.md](docs/GUIA-INFRAESTRUTURA-AZURE-BICEP.md) |
 | Executar localmente e resolver problemas | [docs/GUIA-EXECUCAO-LOCAL.md](docs/GUIA-EXECUCAO-LOCAL.md) |
