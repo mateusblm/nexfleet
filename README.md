@@ -2,7 +2,7 @@
 
 Plataforma web para gestão de frotas empresariais. Centraliza veículos, motoristas, vínculos, abastecimentos, manutenções e um painel de custos. Foi desenvolvida como projeto acadêmico de **Arquitetura e Soluções Cloud (PUCPR)**, em cinco sprints.
 
-**Versão:** v0.29.0 · **Status:** Sprints 0 a 4 concluídas · homologação publicada na Azure e validada.
+**Versão:** v0.30.0 · **Status:** Sprints 0 a 4 concluídas · homologação publicada na Azure e validada.
 
 🌐 **Demonstração:** https://white-mushroom-0cadda010.3.azurestaticapps.net
 O acesso é por login; peça uma conta ao responsável. O primeiro acesso pode levar cerca de 30 s, enquanto os serviços "acordam".
@@ -14,7 +14,7 @@ O acesso é por login; peça uma conta ao responsável. O primeiro acesso pode l
 | Área | Funcionalidades |
 |---|---|
 | Acesso | Login com JWT; perfis **Administrador** e **Gestor de Frota**; gestão de usuários |
-| Frota | Veículos, motoristas e vínculos motorista ↔ veículo com histórico |
+| Frota | Veículos, motoristas e vínculos motorista ↔ veículo com histórico; inativar ou excluir (só sem histórico) |
 | Operações | Abastecimentos e manutenções; o hodômetro nunca regride |
 | Painel | Gastos, situação da frota e próximas manutenções |
 | Notificações | E-mail automático a cada abastecimento, por uma função serverless |

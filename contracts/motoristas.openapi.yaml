@@ -69,6 +69,18 @@ paths:
         '404': { description: Motorista não encontrado }
         '409': { description: CPF ou CNH já cadastrado }
         '422': { description: Dados inválidos }
+  /api/v1/motoristas/{id}/definitivo:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      operationId: excluirMotorista
+      summary: Exclui definitivamente um motorista inativo e sem vínculos (ADR 0038)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Motorista excluído }
+        '404': { description: Motorista não encontrado }
+        '409': { description: Motorista com histórico de vínculos; mantenha-o inativo }
+        '422': { description: Motorista ainda não foi inativado }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }

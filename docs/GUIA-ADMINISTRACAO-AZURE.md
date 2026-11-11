@@ -25,7 +25,7 @@ Copie cada bloco **inteiro** no terminal e troque apenas o que estiver indicado 
 | 9 | [Deixar os serviços sempre acordados ou dormindo](#9-deixar-os-serviços-sempre-acordados-ou-dormindo) | Configuração |
 | 10 | [Problemas comuns](#10-problemas-comuns) | — |
 
-**Pelo próprio sistema** (tela **Usuários**, só para Administrador) também é possível cadastrar, editar o e-mail ou o perfil, desativar e reativar contas. Use este guia para o que a tela **não** faz: ver ou trocar senha e apagar contas.
+**Pelo próprio sistema** (tela **Usuários**, só para Administrador) é possível cadastrar, editar o e-mail ou o perfil, desativar, reativar e **excluir** contas desativadas. Use este guia para o que a tela **não** faz, como ver ou trocar senha.
 
 ---
 
@@ -204,6 +204,8 @@ A mudança vale a partir do **próximo login** da pessoa.
 ---
 
 ## 7. Apagar uma conta definitivamente
+
+> **Desde a v0.30.0 isso pode ser feito pela tela:** em **Usuários**, desative a conta e clique em **Excluir**. O mesmo vale para veículos e motoristas inativos sem histórico (ADR 0038). Use os comandos abaixo só se a tela não estiver disponível.
 
 > **Prefira desativar** (seção 5). Abastecimentos, manutenções e vínculos guardam **quem os registrou**. Ao apagar a conta, esses registros passam a apontar para alguém que não existe mais. Apague só contas que **nunca registraram nada**, como contas de teste.
 

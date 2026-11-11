@@ -76,6 +76,19 @@ paths:
       responses:
         '204': { description: Veículo inativado }
         '404': { description: Veículo não encontrado }
+  /api/v1/veiculos/{id}/definitivo:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      operationId: excluirVeiculo
+      summary: Exclui definitivamente um veículo inativo e sem histórico (ADR 0038)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Veículo excluído }
+        '404': { description: Veículo não encontrado }
+        '409': { description: Veículo com histórico (vínculos ou manutenções); mantenha-o inativo }
+        '422': { description: Veículo ainda não foi inativado }
+        '503': { description: Não foi possível confirmar a ausência de histórico }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }

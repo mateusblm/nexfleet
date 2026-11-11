@@ -106,6 +106,22 @@ paths:
         '403': {$ref: '#/components/responses/Proibido'}
         '404': {$ref: '#/components/responses/Ausente'}
         '503': {$ref: '#/components/responses/Indisponivel'}
+  /usuarios/{id}/definitivo:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    delete:
+      operationId: excluirUsuario
+      description: Exclusão definitiva (ADR 0038). Só para conta desativada e diferente da do Administrador autenticado.
+      responses:
+        '204': {description: Conta excluída}
+        '401': {$ref: '#/components/responses/SemSessao'}
+        '403': {$ref: '#/components/responses/Proibido'}
+        '404': {$ref: '#/components/responses/Ausente'}
+        '422': {$ref: '#/components/responses/Invalido'}
+        '503': {$ref: '#/components/responses/Indisponivel'}
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}

@@ -1,5 +1,18 @@
 # Histórico de entregas
 
+## v0.30.0 — 11/11/2026
+
+- **Novo — botão Excluir** nas telas de Veículos, Motoristas e Usuários (ADR 0038).
+  - Aparece somente em registros inativos e pede confirmação.
+  - Só exclui o que **não tem histórico**:
+    - veículo sem vínculos e sem manutenções;
+    - motorista sem vínculos;
+    - usuário desativado e diferente do próprio Administrador.
+  - Com histórico, a mensagem orienta a mantê-lo inativo. Isso preserva o CQ05.
+  - Novas rotas `DELETE /api/v1/{veiculos|motoristas|usuarios}/{id}/definitivo`, com os contratos OpenAPI atualizados.
+  - As rotas foram incluídas nas listas explícitas de rotas permitidas do Gateway, do BFF e da Identidade, só com o método `DELETE`. Um teste HTTP no Gateway e outro na Identidade cobrem isso.
+- **Homologação:** os dados criados pelos testes automáticos (veículos `HML...`, motoristas, vínculos, abastecimentos, projeções do painel e e-mails capturados) foram removidos. O ambiente ficou pronto para uso.
+
 ## Ajustes pós-homologação — 11/11/2026
 
 - **Correção:** os microfrontends publicados (Frota, Operações e Painel) não carregavam no navegador; aparecia "Não foi possível carregar…".
