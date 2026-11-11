@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: NexFleet — Eventos de Operações
-  version: 1.0.0
+  version: 1.1.0
   description: Contratos dos eventos persistidos na outbox e publicados no RabbitMQ.
 defaultContentType: application/json
 channels:
@@ -15,6 +15,26 @@ channels:
     messages:
       ManutencaoRegistrada:
         $ref: '#/components/messages/ManutencaoRegistrada'
+  abastecimentoAtualizado:
+    address: operacoes.abastecimento.atualizado.v1
+    messages:
+      AbastecimentoAtualizado:
+        $ref: '#/components/messages/AbastecimentoAtualizado'
+  abastecimentoExcluido:
+    address: operacoes.abastecimento.excluido.v1
+    messages:
+      AbastecimentoExcluido:
+        $ref: '#/components/messages/AbastecimentoExcluido'
+  manutencaoAtualizada:
+    address: operacoes.manutencao.atualizada.v1
+    messages:
+      ManutencaoAtualizada:
+        $ref: '#/components/messages/ManutencaoAtualizada'
+  manutencaoExcluida:
+    address: operacoes.manutencao.excluida.v1
+    messages:
+      ManutencaoExcluida:
+        $ref: '#/components/messages/ManutencaoExcluida'
 operations:
   publicarAbastecimentoRegistrado:
     action: send
@@ -26,6 +46,26 @@ operations:
     channel: { $ref: '#/channels/manutencaoRegistrada' }
     messages:
       - { $ref: '#/channels/manutencaoRegistrada/messages/ManutencaoRegistrada' }
+  publicarAbastecimentoAtualizado:
+    action: send
+    channel: { $ref: '#/channels/abastecimentoAtualizado' }
+    messages:
+      - { $ref: '#/channels/abastecimentoAtualizado/messages/AbastecimentoAtualizado' }
+  publicarAbastecimentoExcluido:
+    action: send
+    channel: { $ref: '#/channels/abastecimentoExcluido' }
+    messages:
+      - { $ref: '#/channels/abastecimentoExcluido/messages/AbastecimentoExcluido' }
+  publicarManutencaoAtualizada:
+    action: send
+    channel: { $ref: '#/channels/manutencaoAtualizada' }
+    messages:
+      - { $ref: '#/channels/manutencaoAtualizada/messages/ManutencaoAtualizada' }
+  publicarManutencaoExcluida:
+    action: send
+    channel: { $ref: '#/channels/manutencaoExcluida' }
+    messages:
+      - { $ref: '#/channels/manutencaoExcluida/messages/ManutencaoExcluida' }
 components:
   messages:
     AbastecimentoRegistrado:
@@ -38,13 +78,33 @@ components:
       title: Manutenção persistida
       headers: { $ref: '#/components/schemas/CabecalhosEvento' }
       payload: { $ref: '#/components/schemas/ManutencaoRegistrada' }
+    AbastecimentoAtualizado:
+      name: AbastecimentoAtualizado.v1
+      title: Abastecimento editado
+      headers: { $ref: '#/components/schemas/CabecalhosEvento' }
+      payload: { $ref: '#/components/schemas/AbastecimentoAtualizado' }
+    AbastecimentoExcluido:
+      name: AbastecimentoExcluido.v1
+      title: Abastecimento excluído
+      headers: { $ref: '#/components/schemas/CabecalhosEvento' }
+      payload: { $ref: '#/components/schemas/AbastecimentoExcluido' }
+    ManutencaoAtualizada:
+      name: ManutencaoAtualizada.v1
+      title: Manutenção editada
+      headers: { $ref: '#/components/schemas/CabecalhosEvento' }
+      payload: { $ref: '#/components/schemas/ManutencaoAtualizada' }
+    ManutencaoExcluida:
+      name: ManutencaoExcluida.v1
+      title: Manutenção excluída
+      headers: { $ref: '#/components/schemas/CabecalhosEvento' }
+      payload: { $ref: '#/components/schemas/ManutencaoExcluida' }
   schemas:
     CabecalhosEvento:
       type: object
       required: [eventoId, eventoTipo, eventoVersao, agregadoTipo, agregadoId, ocorridoEm, X-Correlation-ID]
       properties:
         eventoId: { type: string, format: uuid }
-        eventoTipo: { type: string, enum: [AbastecimentoRegistrado, ManutencaoRegistrada] }
+        eventoTipo: { type: string, enum: [AbastecimentoRegistrado, ManutencaoRegistrada, AbastecimentoAtualizado, AbastecimentoExcluido, ManutencaoAtualizada, ManutencaoExcluida] }
         eventoVersao: { type: integer, const: 1 }
         agregadoTipo: { type: string, enum: [ABASTECIMENTO, MANUTENCAO] }
         agregadoId: { type: string, format: uuid }
@@ -64,6 +124,7 @@ components:
         litros: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
         valorTotal: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
         quilometragem: { type: integer, format: int64, minimum: 1 }
+        versao: { $ref: '#/components/schemas/VersaoRegistro' }
         correlationId: { type: string, format: uuid }
     ManutencaoRegistrada:
       type: object
@@ -80,4 +141,70 @@ components:
         oficina: { type: string, maxLength: 150 }
         valor: { type: number, minimum: 0, multipleOf: 0.01 }
         proximaManutencao: { type: [string, 'null'], format: date }
+        versao: { $ref: '#/components/schemas/VersaoRegistro' }
+        correlationId: { type: string, format: uuid }
+    VersaoRegistro:
+      type: integer
+      minimum: 1
+      description: Versão do registro no Operações; 1 no registro, +1 a cada edição e na exclusão. Ausente nos eventos de registro antigos (equivale a 1).
+    AbastecimentoAtualizado:
+      description: Campos de AbastecimentoRegistrado na versão gravada, mais versao e atualizadoPor.
+      type: object
+      additionalProperties: false
+      required: [eventoId, abastecimentoId, veiculoId, motoristaId, realizadoEm, combustivel, litros, valorTotal, quilometragem, versao, atualizadoPor, correlationId]
+      properties:
+        eventoId: { type: string, format: uuid }
+        abastecimentoId: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        motoristaId: { type: string, format: uuid }
+        realizadoEm: { type: string, format: date-time }
+        combustivel: { type: string, minLength: 1, maxLength: 40 }
+        litros: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+        valorTotal: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+        quilometragem: { type: integer, format: int64, minimum: 1 }
+        versao: { $ref: '#/components/schemas/VersaoRegistro' }
+        atualizadoPor: { type: string, format: uuid }
+        correlationId: { type: string, format: uuid }
+    AbastecimentoExcluido:
+      type: object
+      additionalProperties: false
+      required: [eventoId, abastecimentoId, veiculoId, versao, excluidoPor, excluidoEm, correlationId]
+      properties:
+        eventoId: { type: string, format: uuid }
+        abastecimentoId: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        versao: { $ref: '#/components/schemas/VersaoRegistro' }
+        excluidoPor: { type: string, format: uuid }
+        excluidoEm: { type: string, format: date-time }
+        correlationId: { type: string, format: uuid }
+    ManutencaoAtualizada:
+      description: Campos de ManutencaoRegistrada na versão gravada, mais versao e atualizadoPor.
+      type: object
+      additionalProperties: false
+      required: [eventoId, manutencaoId, veiculoId, tipo, realizadaEm, quilometragem, descricao, oficina, valor, versao, atualizadoPor, correlationId]
+      properties:
+        eventoId: { type: string, format: uuid }
+        manutencaoId: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        tipo: { type: string, enum: [PREVENTIVA, CORRETIVA, REVISAO, TROCA_OLEO, TROCA_PNEUS, OUTROS] }
+        realizadaEm: { type: string, format: date }
+        quilometragem: { type: integer, format: int64, minimum: 0 }
+        descricao: { type: string, maxLength: 500 }
+        oficina: { type: string, maxLength: 150 }
+        valor: { type: number, minimum: 0, multipleOf: 0.01 }
+        proximaManutencao: { type: [string, 'null'], format: date }
+        versao: { $ref: '#/components/schemas/VersaoRegistro' }
+        atualizadoPor: { type: string, format: uuid }
+        correlationId: { type: string, format: uuid }
+    ManutencaoExcluida:
+      type: object
+      additionalProperties: false
+      required: [eventoId, manutencaoId, veiculoId, versao, excluidoPor, excluidoEm, correlationId]
+      properties:
+        eventoId: { type: string, format: uuid }
+        manutencaoId: { type: string, format: uuid }
+        veiculoId: { type: string, format: uuid }
+        versao: { $ref: '#/components/schemas/VersaoRegistro' }
+        excluidoPor: { type: string, format: uuid }
+        excluidoEm: { type: string, format: date-time }
         correlationId: { type: string, format: uuid }
