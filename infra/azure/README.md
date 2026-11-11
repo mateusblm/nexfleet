@@ -42,10 +42,10 @@ O único custo fixo que sobra é o Service Bus Standard. Custos variáveis: APIM
     "sqlAdministratorPassword": { "value": "<senha-forte>" },
     "administratorIpAddress": { "value": "" },
     "serviceDatabaseCredentials": { "value": {
-      "identidade":   { "login": "nexfleet_identidade",   "password": "<senha-forte>" },
-      "operacoes":    { "login": "nexfleet_operacoes",    "password": "<senha-forte>" },
-      "indicadores":  { "login": "nexfleet_indicadores",  "password": "<senha-forte>" },
-      "notificacoes": { "login": "nexfleet_notificacoes", "password": "<senha-forte>" }
+      "identidade":    { "login": "identidade",   "password": "<senha-forte>" },
+      "operacoes":     { "login": "operacoes",    "password": "<senha-forte>" },
+      "indicadores":   { "login": "indicadores",  "password": "<senha-forte>" },
+      "notificacoes":  { "login": "notificacoes", "password": "<senha-forte>" }
     } },
     "mongodbUri": { "value": "mongodb+srv://frota:<senha>@<cluster>.mongodb.net/frota" },
     "eficienciaFunctionKey": { "value": "<chave-da-function>" },

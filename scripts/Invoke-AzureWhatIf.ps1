@@ -263,10 +263,10 @@ $jwtPrivateKey = $null
 # As imagens do Docker Hub usam a tag com prefixo v (v1.0.0).
 $containerImageTag = 'v' + (Get-Content -LiteralPath (Join-Path $projectRoot 'VERSION') -Raw).Trim().TrimStart('v')
 $serviceDatabaseCredentials = [ordered]@{
-    identidade = [ordered]@{ login = 'nexfleet_identidade'; password = (New-TemporaryPassword) }
-    operacoes = [ordered]@{ login = 'nexfleet_operacoes'; password = (New-TemporaryPassword) }
-    indicadores = [ordered]@{ login = 'nexfleet_indicadores'; password = (New-TemporaryPassword) }
-    notificacoes = [ordered]@{ login = 'nexfleet_notificacoes'; password = (New-TemporaryPassword) }
+    identidade = [ordered]@{ login = 'identidade'; password = (New-TemporaryPassword) }
+    operacoes = [ordered]@{ login = 'operacoes'; password = (New-TemporaryPassword) }
+    indicadores = [ordered]@{ login = 'indicadores'; password = (New-TemporaryPassword) }
+    notificacoes = [ordered]@{ login = 'notificacoes'; password = (New-TemporaryPassword) }
 }
 
 $now = Get-Date

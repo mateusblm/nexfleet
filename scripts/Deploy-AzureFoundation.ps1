@@ -71,7 +71,8 @@ if (Test-Path -LiteralPath $SecretsPath -PathType Leaf) {
     $serviceCredentials = [ordered]@{}
     foreach ($service in @('identidade', 'operacoes', 'indicadores', 'notificacoes')) {
         $serviceCredentials[$service] = [pscustomobject]@{
-            login = "nexfleet_$service"
+            # O usuario contido tem o nome do schema, como cria infra/sqlserver/bootstrap.sql.
+            login = $service
             password = ConvertTo-SecureString (New-StrongPassword) -AsPlainText -Force
         }
     }
