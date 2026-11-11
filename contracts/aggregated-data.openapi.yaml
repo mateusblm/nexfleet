@@ -9,8 +9,10 @@ info:
     limite por fonte (5 s, configurável em AGREGADO_TIMEOUT). A Function recebe o histórico de
     Operações agrupado por veículo; por isso, se Operações falhar, a Function não é chamada e
     fontes.funcao vem "falhou". Uma fonte que falha ou estoura o tempo limite devolve a seção
-    vazia e "falhou" em fontes; a resposta só é 502 quando as três falham. Cada listagem de
-    origem é lida até 1.000 itens.
+    vazia e "falhou" em fontes; a resposta só é 502 quando as três falham. Frota lê até 1.000
+    itens por listagem; Operações, até 4.000 abastecimentos e 4.000 manutenções. Se Operações
+    tiver mais, o BFF corta, registra aviso com o correlationId e devolve operacoes.truncado = true
+    (fontes.operacoes continua "ok").
 paths:
   /api/v1/aggregated-data:
     get:
@@ -142,6 +144,12 @@ components:
           type: array
           maxItems: 10
           items: { $ref: "#/components/schemas/Manutencao" }
+        truncado:
+          type: boolean
+          description: >-
+            true quando Operações tinha mais de 4.000 abastecimentos ou 4.000 manutenções e o
+            histórico enviado à Function foi cortado nesse teto. Campo aditivo; false quando
+            completo ou quando fontes.operacoes = falhou.
     Abastecimento:
       type: object
       required: [id, veiculoId, realizadoEm, combustivel, litros, valorTotal, quilometragem]
