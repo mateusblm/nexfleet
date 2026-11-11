@@ -20,7 +20,7 @@ O único custo fixo que sobra é o Service Bus Standard. Custos variáveis: APIM
 - `modules/workloads.bicep`: seis Container Apps com imagens do Docker Hub.
 - `modules/container-app.bicep`: módulo reutilizável de workload, ingress, probes e escala.
 - `resource-requirements.json`: provedores e tipos de recurso esperados (21).
-- `staticwebapp.config.json`: rotas, fallback e cabeçalhos do frontend, inclusive `/docs/eventos`.
+- `staticwebapp.config.json`: rotas, fallback e cabeçalhos do frontend, inclusive `/docs/eventos`. Os assets do web component AsyncAPI ficam no próprio site (`/docs/eventos/vendor/`, copiados no build), então a CSP dessas rotas continua só com `'self'`; ela acrescenta `'unsafe-eval'` em `script-src` porque o parser AsyncAPI embutido valida o contrato com Ajv, que compila validadores com `new Function` (sem isso a página fica em branco). A exceção vale só para `/docs/eventos` e `/docs/eventos/*`; o restante do site mantém `script-src 'self'`.
 - `preflight-profile.*.json`, `deployment-plan.example.json`: perfil e plano, sem segredo real.
 - `bicepconfig.json`: regras do linter tratadas como barreiras de segurança.
 
