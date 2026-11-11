@@ -2,6 +2,7 @@ package br.com.nexfleet.quality;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +20,15 @@ class QualityEvidenceTest {
   private static final Pattern CQ_ROW = Pattern.compile("(?m)^\\| (CQ\\d{2}) \\|");
   private static final Pattern CREATE_TABLE = Pattern.compile(
       "(?i)CREATE\\s+TABLE\\s+([a-z_]+\\.[a-z_]+)");
+  private static final List<String> SIBLINGS = List.of(
+      "gateway", "bff", "identidade", "frota", "operacoes", "indicadores", "function");
+  /** Frota guarda veículos, motoristas e vínculos no MongoDB: não há migração SQL dela. */
+  private static final Set<String> MIGRATED_TABLES = Set.of(
+      "identidade.usuario",
+      "operacoes.abastecimento", "operacoes.hodometro", "operacoes.manutencao",
+      "operacoes.outbox_evento",
+      "indicadores.abastecimento_projecao", "indicadores.manutencao_projecao",
+      "notificacoes.email_capturado");
 
   @Test
   void matrizContemCadaCenarioDeQualidadeUmaUnicaVez() throws IOException {
@@ -38,7 +48,7 @@ class QualityEvidenceTest {
   }
 
   @Test
-  void diagramasRepresentamAsTabelasMigradasEFluxoCritico() throws IOException {
+  void diagramasContemAsSecoesArquiteturais() throws IOException {
     Path root = projectRoot();
     Path diagrams = root.resolve("docs").resolve("DIAGRAMAS-ARQUITETURA.md");
     assertTrue(Files.isRegularFile(diagrams), "Diagramas de arquitetura não encontrados.");
@@ -49,19 +59,32 @@ class QualityEvidenceTest {
         "UML de componentes", "UML de sequência", "DER físico")) {
       assertTrue(content.contains(section), "Seção arquitetural ausente: " + section);
     }
+  }
+
+  @Test
+  void diagramasRepresentamAsTabelasMigradasEFluxoCritico() throws IOException {
+    Path root = projectRoot();
+    String content = Files.readString(
+        root.resolve("docs").resolve("DIAGRAMAS-ARQUITETURA.md"), StandardCharsets.UTF_8);
+
+    // As migrações e os fontes Java vivem nos repositórios irmãos; sem eles clonados
+    // lado a lado a checagem contra o código não tem o que conferir.
+    List<Path> repositories = siblingRepositories(root);
+    List<Path> missing = repositories.stream().filter(path -> !Files.isDirectory(path)).toList();
+    assumeTrue(missing.isEmpty(),
+        "Repositórios irmãos ausentes (defina -Dnexfleet.repos.dir): " + missing);
 
     Set<String> migratedTables = new TreeSet<>();
-    for (Path migrationRoot : List.of(
-        root.resolve("services"), root.resolve("functions").resolve("notificar-abastecimento"))) {
+    for (Path repository : repositories) {
+      Path migrationRoot = repository.resolve("src").resolve("main").resolve("resources")
+          .resolve("db").resolve("migration");
       if (!Files.isDirectory(migrationRoot)) continue;
       try (var paths = Files.walk(migrationRoot)) {
-        paths.filter(path -> path.toString().replace('\\', '/').contains(
-                "/src/main/resources/db/migration/"))
-            .filter(path -> path.toString().endsWith(".sql"))
+        paths.filter(path -> path.toString().endsWith(".sql"))
             .forEach(path -> migratedTables.addAll(readCreatedTables(path)));
       }
     }
-    assertEquals(11, migratedTables.size(), "Inventário inesperado de tabelas de negócio.");
+    assertEquals(MIGRATED_TABLES, migratedTables, "Inventário inesperado de tabelas de negócio.");
     for (String table : migratedTables) {
       assertTrue(content.contains("`" + table + "`"),
           "Tabela migrada ausente do inventário DER: " + table);
@@ -76,8 +99,15 @@ class QualityEvidenceTest {
         "NotificarAbastecimentoFunction", "NotificarAbastecimento",
         "JdbcProvedorEmailCapturado")) {
       assertTrue(content.contains(className), "Classe do fluxo crítico ausente: " + className);
-      assertTrue(javaSourceExists(root, className), "Fonte Java não encontrado: " + className);
+      assertTrue(javaSourceExists(repositories, className), "Fonte Java não encontrado: " + className);
     }
+  }
+
+  /** Repositórios irmãos em {@code ../nexfleet-<svc>} ou em {@code -Dnexfleet.repos.dir}. */
+  private static List<Path> siblingRepositories(Path root) {
+    String configured = System.getProperty("nexfleet.repos.dir", "");
+    Path base = configured.isBlank() ? root.getParent() : Path.of(configured).toAbsolutePath();
+    return SIBLINGS.stream().map(name -> base.resolve("nexfleet-" + name)).toList();
   }
 
   private static Path projectRoot() {
@@ -95,14 +125,17 @@ class QualityEvidenceTest {
     }
   }
 
-  private static boolean javaSourceExists(Path root, String className) throws IOException {
-    try (var paths = Files.walk(root.resolve("services"))) {
-      if (paths.anyMatch(path -> path.getFileName().toString().equals(className + ".java"))) {
-        return true;
+  private static boolean javaSourceExists(List<Path> repositories, String className)
+      throws IOException {
+    for (Path repository : repositories) {
+      Path sources = repository.resolve("src").resolve("main").resolve("java");
+      if (!Files.isDirectory(sources)) continue;
+      try (var paths = Files.walk(sources)) {
+        if (paths.anyMatch(path -> path.getFileName().toString().equals(className + ".java"))) {
+          return true;
+        }
       }
     }
-    try (var paths = Files.walk(root.resolve("functions"))) {
-      return paths.anyMatch(path -> path.getFileName().toString().equals(className + ".java"));
-    }
+    return false;
   }
 }
