@@ -186,8 +186,31 @@ classDiagram
     +operacaoPermitida(token, veiculoId, motoristaId, data)
   }
   class FalhaAbastecimento
+  class Abastecimento {
+    <<domain>>
+    +validarCadastro(...) MedicaoAbastecimento
+    +validarContraHodometro(hodometroAtual, quilometragem)
+    +versaoSeguinte(versaoAtual)
+  }
+  class MedicaoAbastecimento {
+    <<domain>>
+    +combustivel
+    +litros
+    +valorTotal
+    +quilometragem
+  }
+  class FaixaQuilometragem {
+    <<domain>>
+    +anterior
+    +seguinte
+    +validar(quilometragem)
+  }
 
   AbastecimentosController --> GerenciarAbastecimentos
+  GerenciarAbastecimentos ..> Abastecimento
+  GerenciarAbastecimentos ..> MedicaoAbastecimento
+  JdbcAbastecimentos ..> Abastecimento
+  JdbcAbastecimentos ..> FaixaQuilometragem
   GerenciarAbastecimentos --> Abastecimentos
   GerenciarAbastecimentos --> ReferenciasFrota
   JdbcAbastecimentos ..|> Abastecimentos
@@ -197,7 +220,7 @@ classDiagram
   HttpReferenciasFrota ..> FalhaAbastecimento
 ```
 
-A fatia usa JDBC com T-SQL e não possui um pacote `domain` próprio; suas regras estão no caso de uso e no adaptador transacional. Os tipos de domínio compartilhados existentes ficam em fatias específicas, como `StatusVeiculo`, `StatusMotorista` e `Perfil`.
+A fatia usa JDBC com T-SQL. As regras puras ficam no pacote `domain` (validação do cadastro e da edição, hodômetro, faixa de quilometragem entre vizinhos e versão), sem dependência de Spring ou JDBC; o caso de uso orquestra e traduz a violação para `FalhaAbastecimento`, e o adaptador transacional busca o hodômetro e os vizinhos sob trava antes de aplicar a regra. Outros tipos de domínio ficam nas fatias que os usam, como `TipoManutencao`, `StatusVeiculo`, `StatusMotorista` e `Perfil`.
 
 ## UML de componentes: fluxo entre serviços
 
