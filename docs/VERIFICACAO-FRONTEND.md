@@ -15,7 +15,7 @@
 
 - 37 testes aprovados em seis arquivos: ambiente, login/perfis, usuários, veículos, motoristas e vínculos.
 - Build TypeScript/Vite aprovado, com validação estática antes de gerar `dist`.
-- Veículos cobre contrato, filtro, cadastro com os campos do PJBL e confirmação antes da inativação.
+- Veículos cobre contrato, filtro, cadastro com os campos dos requisitos do produto e confirmação antes da inativação.
 - Motoristas cobre contrato, máscara de CPF, filtro, cadastro, edição e mudança para inativo.
 - Vínculos cobre contrato, referências disponíveis, criação, histórico e encerramento.
 - A API real foi comprovada pelo Gateway; esta seção é histórica e antecede a extração dos microfrontends.

@@ -1,6 +1,6 @@
 # Guia da infraestrutura Azure com Bicep
 
-Versão de referência: **v1.0.0** (entrega final), revisada em 11/11/2026.
+Versão de referência: **v1.0.0**, revisada em 11/11/2026.
 
 O repositório contém a arquitetura de homologação em Bicep, os validadores e o `what-if`. A v1.0.0 troca o desenho da v0.29.0/v0.30.0 por um sem custo fixo além do Service Bus Standard. As decisões da publicação anterior estão na [ADR 0037](adr/0037-publicacao-homologacao-azure.md).
 

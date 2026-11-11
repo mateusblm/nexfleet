@@ -38,4 +38,4 @@ Também era necessário verificar o conteúdo efetivamente emitido no log, inclu
 - Senha e token são sentinelas aleatórias, permitindo detectar vazamento sem usar segredos do usuário.
 - A execução integrada exige Docker; a suíte rápida permanece independente dele.
 
-Veja a [Evidência CQ07](../EVIDENCIA-CQ07-INDISPONIBILIDADE.md), a [Aula 27](../tutorials/27-readiness-e-logs-seguros-cq07.md) e a [matriz de qualidade](../MATRIZ-CQ01-CQ12.md).
+Veja a [Evidência CQ07](../EVIDENCIA-CQ07-INDISPONIBILIDADE.md) e a [matriz de qualidade](../MATRIZ-CQ01-CQ12.md).

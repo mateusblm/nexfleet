@@ -33,4 +33,4 @@ As fases compartilham somente identificadores gerados para o ensaio. Cada servi�
 - A execução integrada exige Docker; os testes rápidos continuam sem iniciar bancos.
 - O workflow backend passa a impedir regressões desse comportamento.
 
-Veja a [Evidência CQ05](../EVIDENCIA-CQ05-HISTORICO.md), a [Aula 26](../tutorials/26-historico-apos-inativacao-cq05.md) e a [matriz de qualidade](../MATRIZ-CQ01-CQ12.md).
+Veja a [Evidência CQ05](../EVIDENCIA-CQ05-HISTORICO.md) e a [matriz de qualidade](../MATRIZ-CQ01-CQ12.md).

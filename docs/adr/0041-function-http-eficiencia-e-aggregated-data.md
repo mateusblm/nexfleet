@@ -5,7 +5,7 @@ Estado: aceita
 
 ## Contexto
 
-O enunciado final exige que o BFF exponha `GET /aggregated-data`, combinando dados de **dois microsserviços** e de uma **Azure Function HTTP**. Até a v0.30.0, a única Function (`NotificarAbastecimento`) era acionada por evento e o BFF compunha apenas o dashboard (ADR 0018).
+Os requisitos da v1.0.0 pedem que o BFF exponha `GET /aggregated-data`, combinando dados de **dois microsserviços** e de uma **Azure Function HTTP**. Até a v0.30.0, a única Function (`NotificarAbastecimento`) era acionada por evento e o BFF compunha apenas o dashboard (ADR 0018).
 
 Também era preciso que a visão consolidada continuasse útil quando uma das fontes falhasse, e que a Function não ficasse aberta a abuso, porque o endpoint de uma Function é público.
 
@@ -38,7 +38,7 @@ O microfrontend Painel ganhou o cartão "Visão consolidada", que chama `/api/v1
 - A spec previa as três chamadas em paralelo; o paralelismo vale só entre Frota e Operações, porque a entrada da Function é derivada delas.
 - Uma falha da Function não afeta `frota` e `operacoes`, que vêm preenchidas normalmente.
 - A chave da Function só existe no BFF; um terceiro sem a chave recebe 401, e um corpo acima de 10.000 itens recebe 400.
-- O cálculo é refeito a cada chamada, sem cache. Para o volume acadêmico, isso é aceitável.
+- O cálculo é refeito a cada chamada, sem cache. Para o volume atual, isso é aceitável.
 
 ## Alternativas rejeitadas
 

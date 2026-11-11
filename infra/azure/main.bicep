@@ -95,7 +95,7 @@ var commonTags = union(additionalTags, {
   application: 'NexFleet'
   environment: environmentName
   managedBy: 'Bicep'
-  costCenter: 'PJBL'
+  costCenter: 'NexFleet'
 })
 
 var databaseMigrationGate = !workloadsEnabled || databaseMigrationsCompleted

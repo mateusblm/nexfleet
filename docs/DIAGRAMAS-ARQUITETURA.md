@@ -541,7 +541,7 @@ erDiagram
 
 | Visão | Fontes verificadas |
 |---|---|
-| C4 nível 1 | `docs/reference/ArqCloud_PJBL-Completo.pdf`, escopo, atores e ADRs 0036 e 0039 |
+| C4 nível 1 | requisitos do produto, escopo, atores e ADRs 0036 e 0039 |
 | C4 nível 2 | `compose.yaml`, `infra/azure/modules/*.bicep`, shell e três MFEs de `nexfleet-frontend` |
 | C4 nível 3 | pacotes de `nexfleet-operacoes/src/main/java` |
 | C4 nível 4 | `AbastecimentosController`, `GerenciarAbastecimentos`, `Abastecimentos`, `ReferenciasFrota`, `JdbcAbastecimentos`, `HttpReferenciasFrota` |

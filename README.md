@@ -1,8 +1,8 @@
 # NexFleet — gestão de frotas em nuvem
 
-Plataforma web para gestão de frotas empresariais. Centraliza veículos, motoristas, vínculos, abastecimentos, manutenções, um painel de custos e uma visão consolidada de eficiência. Foi desenvolvida como projeto acadêmico de **Arquitetura e Soluções Cloud (PUCPR)**.
+Plataforma web para gestão de frotas empresariais. Centraliza veículos, motoristas, vínculos, abastecimentos, manutenções, um painel de custos e uma visão consolidada de eficiência.
 
-**Versão:** v1.0.0 (entrega final, 11/11/2026) · publicada na Azure e validada por smoke público.
+**Versão:** v1.0.0 (11/11/2026) · publicada na Azure e validada por smoke público.
 
 Este é o repositório **guarda-chuva**: documentação, ADRs, contratos, infraestrutura (Bicep e Compose), verificação de qualidade e scripts. O código de cada componente está no próprio repositório (seção [Estrutura](#estrutura)).
 
@@ -32,7 +32,7 @@ Operações → outbox → RabbitMQ (local) / Service Bus (Azure) → Indicadore
 - **Estilos aplicados:** microfrontends, API Gateway + BFF, microsserviços com dados isolados por serviço, arquitetura orientada a eventos (outbox, consumidores idempotentes, retry e DLQ), serverless e Clean Architecture + Vertical Slice, com regras verificadas pelo ArchUnit.
 - **`GET /aggregated-data`** (BFF): compõe Frota, Operações e a Function de eficiência em um JSON; se uma fonte falha, responde 200 com `fontes.<fonte> = "falhou"` (ADR 0041).
 - **Documentação de APIs:** Swagger UI única no Gateway (BFF, Frota, Operações, Identidade e Indicadores) e página AsyncAPI dos eventos em `/docs/eventos`.
-- Diagramas C4, UML e DER: [docs/DIAGRAMAS-ARQUITETURA.md](docs/DIAGRAMAS-ARQUITETURA.md). Decisões: [docs/adr](docs/adr) (as da entrega final são as ADRs 0039 a 0044).
+- Diagramas C4, UML e DER: [docs/DIAGRAMAS-ARQUITETURA.md](docs/DIAGRAMAS-ARQUITETURA.md). Decisões: [docs/adr](docs/adr) (as da v1.0.0 são as ADRs 0039 a 0044).
 
 | Ambiente local (Docker Compose) | Azure (homologação) |
 |---|---|
@@ -128,7 +128,7 @@ Pastas deste repositório:
 
 ```text
 contracts/   contratos OpenAPI e AsyncAPI
-docs/        guias, ADRs, diagramas, aulas, evidências e entregas
+docs/        guias, ADRs, diagramas, evidências e notas de versão
 infra/       Bicep da Azure, bootstrap do SQL Server, RabbitMQ e Function local
 quality/     verificação de contratos e diagramas contra o código, carga (CQ09) e homologação
 scripts/     execução local, seed, smoke e publicação (os .ps1 marcados LEGADO são da v0.30.0)
@@ -156,6 +156,6 @@ Senhas, chaves e identificadores da assinatura **nunca** são versionados:
 - na Azure, segredos ficam em secrets dos Container Apps e nas configurações da Function; Service Bus e e-mail usam identidade gerenciada;
 - o Azure SQL e o MongoDB Atlas têm endpoint público com TLS obrigatório; o firewall do SQL aceita só os serviços da Azure e, quando liberado, o IP do administrador; cada serviço só enxerga o próprio schema.
 
-## Alunos
+## Equipe
 
 Vinícius dos Reis Góes · Mateus Burlamaqui · Lucas Roussenq · Erik Carvalho

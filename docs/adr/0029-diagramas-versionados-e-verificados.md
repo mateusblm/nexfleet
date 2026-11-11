@@ -6,7 +6,7 @@ Aceita em 08/11/2026.
 
 ## Contexto
 
-O PJBL exige C4 níveis 1–4, UML e DER coerentes com processos, pacotes, classes, chamadas e migrações. As figuras do PDF representam a arquitetura planejada, mas a implementação evoluiu: a fatia de abastecimento usa JDBC e os pacotes `api`, `application` e `infrastructure`, sem o pacote `domain` previsto originalmente.
+Os requisitos do produto pedem C4 níveis 1–4, UML e DER coerentes com processos, pacotes, classes, chamadas e migrações. As figuras iniciais representavam a arquitetura planejada, mas a implementação evoluiu: a fatia de abastecimento usa JDBC e os pacotes `api`, `application` e `infrastructure`, sem o pacote `domain` previsto originalmente.
 
 Diagramas mantidos somente como imagem podem ficar desatualizados sem que a suíte de testes perceba.
 

@@ -22,6 +22,6 @@ O seed local aceita `LOCAL_USER_PROFILE`, padrão GESTOR_FROTA. ADMINISTRADOR pr
 
 ## Limites
 
-Regra de impedir remoção do último administrador não está definida no PJBL e não foi inventada. O operador deve manter uma conta administrativa de recuperação; não rebaixar/desativar a última conta. Provisionamento de produção e política de recuperação precisam de decisão antes da Azure.
+Regra de impedir remoção do último administrador não está definida nos requisitos do produto e não foi inventada. O operador deve manter uma conta administrativa de recuperação; não rebaixar/desativar a última conta. Provisionamento de produção e política de recuperação precisam de decisão antes da Azure.
 
 Ainda faltam integração real com PostgreSQL, testes de migração/índices, auditoria operacional completa e aplicação de permissões nos serviços de Frota/Operações futuros. RF03 não está concluído em todo o sistema. A tela administrativa fica no shell; os MFEs de domínio permanecem pendentes.

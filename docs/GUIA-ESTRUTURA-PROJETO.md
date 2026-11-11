@@ -393,12 +393,7 @@ O diretório [`scripts`](../scripts) reúne tarefas repetitivas:
 O diretório [`docs`](.) contém:
 
 - `ARQUITETURA.md`: arquitetura técnica e evolução;
-- `STATUS-SPRINTS.md`: concluído e pendente;
-- `PLANEJAMENTO.md`: planejamento por sprint;
-- `ESCOPO-PJBL.md`: requisitos e rastreabilidade;
 - `adr/`: registros das decisões arquiteturais;
-- `tutorials/`: explicação progressiva da implementação;
-- `reference/`: documento normativo original;
 - `GUIA-EXECUCAO-LOCAL.md`: instalação, subida e bancos;
 - `GUIA-SEGURANCA-BANCO-LOCAL.md`: autenticação e rotação das senhas dos bancos locais;
 - este guia de estrutura do projeto.
@@ -530,7 +525,7 @@ Uma mudança de ponta a ponta normalmente exige atualização coordenada em mais
 7. fluxo de abastecimento e outbox;
 8. RabbitMQ, Indicadores e Function;
 9. scripts e arquivos Compose;
-10. ADRs e tutoriais para entender as decisões históricas.
+10. ADRs para entender as decisões históricas.
 
 Para instalar, executar e acessar os bancos, consulte o [Guia de execução local](GUIA-EXECUCAO-LOCAL.md).
 
@@ -547,25 +542,25 @@ Nos seis serviços Java, o identificador entra no MDC, uma área associada à ex
 
 No registro de abastecimentos e manutenções, Operações também grava a correlação em `operacoes.outbox_evento.correlation_id`. O publicador a inclui no payload JSON e no cabeçalho RabbitMQ. Indicadores abre o mesmo contexto de log ao consumir; a Function lê o valor do payload. Para mensagens antigas, `eventoId` funciona como correlação de compatibilidade.
 
-Esse identificador não autentica e não autoriza ninguém. Ele serve apenas para localizar, em diferentes componentes, os trechos pertencentes à mesma operação. A decisão completa está na [ADR 0021](adr/0021-correlacao-ponta-a-ponta.md), e o roteiro prático está na [Aula 20](tutorials/20-correlacao-ponta-a-ponta.md).
+Esse identificador não autentica e não autoriza ninguém. Ele serve apenas para localizar, em diferentes componentes, os trechos pertencentes à mesma operação. A decisão completa está na [ADR 0021](adr/0021-correlacao-ponta-a-ponta.md).
 
 ## 19. Contratos e smoke E2E
 
 Na v0.17.0, `Test-Project.ps1` executa primeiro o módulo `quality`, antes dos serviços e frontends. Com o Compose ativo, `Test-ApiContracts.ps1` usa a conta local para percorrer Gateway → BFF → serviços e conferir campos obrigatórios, autorização e correlação. Ele consulta dados existentes, mas não cadastra nem altera veículos, motoristas, abastecimentos ou manutenções.
 
-`Test-E2E.ps1` acrescenta topologia/consumidores RabbitMQ, evento idempotente da Function, DLQ e os seis alvos Prometheus. O workflow `e2e.yml` cria configuração e bancos efêmeros em CI e remove os volumes no final. Veja a [ADR 0022](adr/0022-contratos-executaveis-e-smoke-e2e.md) e a [Aula 21](tutorials/21-contratos-e-smoke-e2e.md).
+`Test-E2E.ps1` acrescenta topologia/consumidores RabbitMQ, evento idempotente da Function, DLQ e os seis alvos Prometheus. O workflow `e2e.yml` cria configuração e bancos efêmeros em CI e remove os volumes no final. Veja a [ADR 0022](adr/0022-contratos-executaveis-e-smoke-e2e.md).
 
 ## 20. Desempenho CQ09
 
-Na v0.18.0, `quality/load/cq09.mjs` cria 100 usuários virtuais concorrentes usando apenas o Node.js. O cenário consulta as listas paginadas pelo Gateway, calcula p50, p95, p99, máximo, vazão e falhas e verifica o limite de 2 segundos tanto no conjunto quanto em cada endpoint. `Test-Performance.ps1` fornece as credenciais ao processo sem imprimi-las, e `Test-E2E.ps1 -IncludePerformance` inclui a prova no fluxo integrado. Veja a [ADR 0023](adr/0023-teste-de-desempenho-cq09.md), a [Aula 22](tutorials/22-teste-de-desempenho-cq09.md) e a [Evidência CQ09](EVIDENCIA-CQ09-DESEMPENHO.md).
+Na v0.18.0, `quality/load/cq09.mjs` cria 100 usuários virtuais concorrentes usando apenas o Node.js. O cenário consulta as listas paginadas pelo Gateway, calcula p50, p95, p99, máximo, vazão e falhas e verifica o limite de 2 segundos tanto no conjunto quanto em cada endpoint. `Test-Performance.ps1` fornece as credenciais ao processo sem imprimi-las, e `Test-E2E.ps1 -IncludePerformance` inclui a prova no fluxo integrado. Veja a [ADR 0023](adr/0023-teste-de-desempenho-cq09.md) e a [Evidência CQ09](EVIDENCIA-CQ09-DESEMPENHO.md).
 
 ## 21. Backup e recuperação CQ10
 
-Na v0.19.0, `Backup-Databases.ps1` usa `pg_dump` dentro dos contêineres para criar cópias dos cinco bancos e um manifesto com SHA-256 e contagens. `Test-Recovery.ps1` restaura cada arquivo em um PostgreSQL temporário sem rede, compara as 16 tabelas e remove todos os recursos de ensaio. Os bancos ativos não são parados ou substituídos. `Test-E2E.ps1 -IncludeRecovery` inclui a prova na automação. Veja a [ADR 0024](adr/0024-backup-e-recuperacao-cq10.md), a [Aula 23](tutorials/23-backup-e-recuperacao-cq10.md) e a [Evidência CQ10](EVIDENCIA-CQ10-RECUPERACAO.md).
+Na v0.19.0, `Backup-Databases.ps1` usa `pg_dump` dentro dos contêineres para criar cópias dos cinco bancos e um manifesto com SHA-256 e contagens. `Test-Recovery.ps1` restaura cada arquivo em um PostgreSQL temporário sem rede, compara as 16 tabelas e remove todos os recursos de ensaio. Os bancos ativos não são parados ou substituídos. `Test-E2E.ps1 -IncludeRecovery` inclui a prova na automação. Veja a [ADR 0024](adr/0024-backup-e-recuperacao-cq10.md) e a [Evidência CQ10](EVIDENCIA-CQ10-RECUPERACAO.md).
 
 ## 22. Usabilidade e validação CQ06
 
-Na v0.20.0, o hook `useFormValidation` complementa a validação HTML dos sete formulários críticos. Ele não limpa o estado React: mantém valores corretos, marca campos inválidos com `aria-invalid`, liga cada controle ao resumo por `aria-describedby` e apresenta um alerta compreensível. O shell, Frota e Operações possuem sua cópia do hook porque são builds independentes. Veja a [ADR 0025](adr/0025-validacao-acessivel-cq06.md), a [Aula 24](tutorials/24-validacao-acessivel-cq06.md) e a [Evidência CQ06](EVIDENCIA-CQ06-USABILIDADE.md).
+Na v0.20.0, o hook `useFormValidation` complementa a validação HTML dos sete formulários críticos. Ele não limpa o estado React: mantém valores corretos, marca campos inválidos com `aria-invalid`, liga cada controle ao resumo por `aria-describedby` e apresenta um alerta compreensível. O shell, Frota e Operações possuem sua cópia do hook porque são builds independentes. Veja a [ADR 0025](adr/0025-validacao-acessivel-cq06.md) e a [Evidência CQ06](EVIDENCIA-CQ06-USABILIDADE.md).
 
 ## 23. Matriz de qualidade
 
@@ -573,23 +568,23 @@ A [matriz CQ01–CQ12](MATRIZ-CQ01-CQ12.md) é a fonte de status dos cenários d
 
 ## 24. Consistência CQ03 e atomicidade CQ04
 
-Na v0.21.0, `Test-Cq03Cq04.ps1` cria um PostgreSQL temporário, aplica Flyway V1–V5 e executa `JdbcAbastecimentosIT`. CQ03 compara abastecimento, hodômetro e outbox depois de uma quilometragem regressiva. CQ04 injeta uma constraint somente no banco efêmero para falhar a outbox depois das escritas anteriores e comprovar o rollback. O contêiner e suas credenciais são descartados ao final. Veja a [ADR 0026](adr/0026-postgresql-efemero-cq03-cq04.md), a [Aula 25](tutorials/25-transacoes-postgresql-cq03-cq04.md) e a [Evidência CQ03/CQ04](EVIDENCIA-CQ03-CQ04-TRANSACAO.md).
+Na v0.21.0, `Test-Cq03Cq04.ps1` cria um PostgreSQL temporário, aplica Flyway V1–V5 e executa `JdbcAbastecimentosIT`. CQ03 compara abastecimento, hodômetro e outbox depois de uma quilometragem regressiva. CQ04 injeta uma constraint somente no banco efêmero para falhar a outbox depois das escritas anteriores e comprovar o rollback. O contêiner e suas credenciais são descartados ao final. Veja a [ADR 0026](adr/0026-postgresql-efemero-cq03-cq04.md) e a [Evidência CQ03/CQ04](EVIDENCIA-CQ03-CQ04-TRANSACAO.md).
 
-Na v0.22.0, `Test-Cq05.ps1` mantém dois PostgreSQL temporários e separados durante quatro fases. Frota cria e inativa logicamente o veículo; Operações registra e consulta o abastecimento pelo controller. O identificador do veículo atravessa o ensaio, mas não há banco compartilhado nem importação entre serviços. A consulta final confirma data e motorista responsável. Veja a [ADR 0027](adr/0027-historico-interservicos-cq05.md), a [Aula 26](tutorials/26-historico-apos-inativacao-cq05.md) e a [Evidência CQ05](EVIDENCIA-CQ05-HISTORICO.md).
+Na v0.22.0, `Test-Cq05.ps1` mantém dois PostgreSQL temporários e separados durante quatro fases. Frota cria e inativa logicamente o veículo; Operações registra e consulta o abastecimento pelo controller. O identificador do veículo atravessa o ensaio, mas não há banco compartilhado nem importação entre serviços. A consulta final confirma data e motorista responsável. Veja a [ADR 0027](adr/0027-historico-interservicos-cq05.md) e a [Evidência CQ05](EVIDENCIA-CQ05-HISTORICO.md).
 
-Na v0.23.0, `Test-Cq07.ps1` executa o JAR real de Frota e um PostgreSQL temporário em rede exclusiva. O script confirma readiness saudável, para somente o banco efêmero e exige readiness/API `DOWN/503`. A resposta e o log mantêm o mesmo identificador de correlação; sentinelas aleatórias comprovam que senha e token não foram registrados. Veja a [ADR 0028](adr/0028-falha-isolada-e-log-seguro-cq07.md), a [Aula 27](tutorials/27-readiness-e-logs-seguros-cq07.md) e a [Evidência CQ07](EVIDENCIA-CQ07-INDISPONIBILIDADE.md).
+Na v0.23.0, `Test-Cq07.ps1` executa o JAR real de Frota e um PostgreSQL temporário em rede exclusiva. O script confirma readiness saudável, para somente o banco efêmero e exige readiness/API `DOWN/503`. A resposta e o log mantêm o mesmo identificador de correlação; sentinelas aleatórias comprovam que senha e token não foram registrados. Veja a [ADR 0028](adr/0028-falha-isolada-e-log-seguro-cq07.md) e a [Evidência CQ07](EVIDENCIA-CQ07-INDISPONIBILIDADE.md).
 
 ## 25. Diagramas C4, UML e DER
 
 Na v0.24.0, o arquivo [DIAGRAMAS-ARQUITETURA.md](DIAGRAMAS-ARQUITETURA.md) passa a ser a visão corrente da implementação. Ele contém C4 níveis 1–4, componentes, classes, sequências e DERs separados para Identidade, Frota, Operações, Indicadores e Notificações.
 
-O módulo `quality` lê todas as migrações de `src/main/resources/db/migration`, compara as onze tabelas encontradas com o inventário DER e verifica 17 classes do fluxo crítico. A fatia Registrar Abastecimento é documentada como existe hoje: `api`, `application` e `infrastructure`, com JDBC e sem um pacote `domain` próprio. Veja a [ADR 0029](adr/0029-diagramas-versionados-e-verificados.md) e a [Aula 28](tutorials/28-diagramas-que-acompanham-o-codigo.md).
+O módulo `quality` lê todas as migrações de `src/main/resources/db/migration`, compara as onze tabelas encontradas com o inventário DER e verifica 17 classes do fluxo crítico. A fatia Registrar Abastecimento é documentada como existe hoje: `api`, `application` e `infrastructure`, com JDBC e sem um pacote `domain` próprio. Veja a [ADR 0029](adr/0029-diagramas-versionados-e-verificados.md).
 
 ## 26. Preflight Azure
 
 Na v0.25.0, `infra/azure` passou a conter o schema do perfil, um exemplo sem dados reais e o inventário inicial dos tipos planejados. Na v0.26.0, o inventário foi ampliado para 16 tipos e o perfil passou a aceitar assinatura paga ou estudantil. Na v0.27.0, o perfil v3 separa a região principal da região de Static Web Apps. `Test-AzurePreflight.ps1` possui um modo offline usado pela CI e um modo conectado que executa somente consultas do Azure CLI.
 
-O script exige orçamento, alertas e oito aprovações antes de consultar a assinatura. Ele não registra provedores nem cria recursos. Consulte o [guia de pré-publicação Azure](GUIA-PRE-PUBLICACAO-AZURE.md), a [ADR 0030](adr/0030-preflight-azure-somente-leitura.md) e a [Aula 29](tutorials/29-preflight-azure-sem-criar-recursos.md).
+O script exige orçamento, alertas e oito aprovações antes de consultar a assinatura. Ele não registra provedores nem cria recursos. Consulte o [guia de pré-publicação Azure](GUIA-PRE-PUBLICACAO-AZURE.md), a [ADR 0030](adr/0030-preflight-azure-somente-leitura.md).
 
 ## 27. Infraestrutura Bicep
 
@@ -601,14 +596,14 @@ Na v0.26.0, `infra/azure/main.bicep` cria a composição no escopo da assinatura
 - seis Container Apps com Service Bus, identidades e RBAC;
 - Azure Communication Services Email.
 
-Em 10/11/2026, o `what-if` em `Central US` terminou com zero exclusões e a homologação foi publicada pelos scripts `Deploy-AzureFoundation.ps1`, `Publish-Azure*.ps1` e testada pelos `Test-Azure*.ps1`. Ver a seção 7.1 do guia Bicep e a ADR 0037. Consulte o [guia Bicep](GUIA-INFRAESTRUTURA-AZURE-BICEP.md), a [ADR 0034](adr/0034-transporte-duplo-e-workloads-azure.md) e a [Aula 33](tutorials/33-transporte-duplo-e-workloads-azure.md).
+Em 10/11/2026, o `what-if` em `Central US` terminou com zero exclusões e a homologação foi publicada pelos scripts `Deploy-AzureFoundation.ps1`, `Publish-Azure*.ps1` e testada pelos `Test-Azure*.ps1`. Ver a seção 7.1 do guia Bicep e a ADR 0037. Consulte o [guia Bicep](GUIA-INFRAESTRUTURA-AZURE-BICEP.md), a [ADR 0034](adr/0034-transporte-duplo-e-workloads-azure.md).
 
 ## 28. Descoberta Azure conectada
 
 Na v0.27.0, `Get-AzureReadiness.ps1` consulta assinatura, regiões e tipos antes das aprovações humanas, sem registrar provedores ou criar recursos. O helper `scripts/lib/AzureCli.ps1` localiza a instalação oficial, trata falhas transitórias e remove UUIDs das mensagens de erro.
 
-A consulta histórica mostrou que `Brazil South` atendia 15 tipos, enquanto Static Web Apps exigia `staticWebLocation` separada. Depois que a política da assinatura recusou as regiões originalmente escolhidas, `Central US` foi aprovada para backend, dados e frontend por suportar os 19 tipos em um único local. O perfil v3 e o Bicep continuam representando as duas propriedades explicitamente. Consulte a [ADR 0032](adr/0032-descoberta-azure-e-regioes-separadas.md), a [Aula 31](tutorials/31-descoberta-azure-conectada.md) e a [Entrega v0.27.0](ENTREGA-v0.27.0.md).
+A consulta histórica mostrou que `Brazil South` atendia 15 tipos, enquanto Static Web Apps exigia `staticWebLocation` separada. Depois que a política da assinatura recusou as regiões originalmente escolhidas, `Central US` foi aprovada para backend, dados e frontend por suportar os 19 tipos em um único local. O perfil v3 e o Bicep continuam representando as duas propriedades explicitamente. Consulte a [ADR 0032](adr/0032-descoberta-azure-e-regioes-separadas.md) e a [v0.27.0 no CHANGELOG](../CHANGELOG.md).
 
-Na v0.28.0, `Register-AzureProviders.ps1` registra apenas os cinco namespaces autorizados, e `Set-AzureBudget.ps1` mantém o orçamento de R$ 100 com alertas. Os dois scripts exigem `-Authorize`, são idempotentes e não implantam workloads. Regiões, Service Bus e backup de sete dias foram registrados como decisões; Azure Communication Services Email é somente uma recomendação pendente. Consulte a [ADR 0033](adr/0033-provedores-orcamento-e-email-azure.md), a [Aula 32](tutorials/32-provedores-orcamento-e-proximos-passos.md) e a [Entrega v0.28.0](ENTREGA-v0.28.0.md).
+Na v0.28.0, `Register-AzureProviders.ps1` registra apenas os cinco namespaces autorizados, e `Set-AzureBudget.ps1` mantém o orçamento de R$ 100 com alertas. Os dois scripts exigem `-Authorize`, são idempotentes e não implantam workloads. Regiões, Service Bus e backup de sete dias foram registrados como decisões; Azure Communication Services Email é somente uma recomendação pendente. Consulte a [ADR 0033](adr/0033-provedores-orcamento-e-email-azure.md) e a [v0.28.0 no CHANGELOG](../CHANGELOG.md).
 
 Na v0.29.0, `modules/workloads.bicep` e `modules/container-app.bicep` representam os seis serviços Java. `Build-AzureFrontend.ps1` monta shell e microfrontends usando `VITE_API_BASE_URL`. RabbitMQ continua local; Service Bus é selecionado na Azure. O adaptador de Azure Communication Services Email está ativo na homologação desde 10/11/2026 (ADR 0036). Localmente, `captured-local` continua sendo o padrão.

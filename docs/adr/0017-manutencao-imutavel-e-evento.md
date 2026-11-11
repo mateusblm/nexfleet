@@ -2,7 +2,7 @@
 
 ## Contexto
 
-RF12 e RF13 exigem registrar os dados da manutenção e consultar o histórico por veículo. RB05 impede novas operações em veículo inativo e RB13 exige que a próxima manutenção, quando informada, seja posterior. O PJBL não determina mudança automática de status, edição ou cancelamento.
+RF12 e RF13 exigem registrar os dados da manutenção e consultar o histórico por veículo. RB05 impede novas operações em veículo inativo e RB13 exige que a próxima manutenção, quando informada, seja posterior. Os requisitos não determinam mudança automática de status, edição ou cancelamento.
 
 ## Decisão
 

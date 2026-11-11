@@ -15,7 +15,7 @@ A consulta `/me` continua sendo encaminhada a Identidade após a verificação l
 - Sem `jwt-rsa`, permanece a validação delegada anterior.
 - O override `compose.jwt-rsa.yaml` agora ativa o perfil em Identidade e BFF. Use rebuild/recriação dos dois serviços, em janela local sem usuários ativos.
 - Não alteramos bancos, formato do login nem armazenamento do token na interface.
-- Não misture BFF RSA com Identidade HMAC. Ativação exige configuração RSA da Aula 5 e novo login.
+- Não misture BFF RSA com Identidade HMAC. Ativação exige configuração RSA da ADR 0006 e novo login.
 - Para rollback, retire o override nos dois serviços, preserve o segredo legado e faça novo login. Não remova volumes.
 - No perfil RSA não há fallback para o modo delegado quando a chave não pode ser obtida. Sem verificação válida, o acesso é recusado.
 
@@ -25,4 +25,4 @@ Esta é a primeira verificação em outro processo, não a conclusão da seguran
 
 HTTP interno é exclusivo da rede local de estudo. Publicação requer revisão de TLS, endereço de emissor, distribuição/rotação de chaves e infraestrutura. O modo legado será removido somente em uma migração posterior planejada.
 
-Referência: [Spring Security — JWT Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html).
+Referência: documentação do [Spring Security](https://docs.spring.io/spring-security/), seção OAuth 2.0 Resource Server — JWT.

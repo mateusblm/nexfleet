@@ -27,4 +27,4 @@ O hook não copia valores nem reinicializa o formulário. Os campos continuam co
 - Quatro testes de aceitação protegem os fluxos representativos.
 - O hook e o CSS possuem pequenas duplicações entre três builds; uma biblioteca compartilhada pode ser avaliada quando houver mais componentes comuns.
 
-Veja a [Evidência CQ06](../EVIDENCIA-CQ06-USABILIDADE.md), a [Aula 24](../tutorials/24-validacao-acessivel-cq06.md) e a [matriz CQ01–CQ12](../MATRIZ-CQ01-CQ12.md).
+Veja a [Evidência CQ06](../EVIDENCIA-CQ06-USABILIDADE.md) e a [matriz CQ01–CQ12](../MATRIZ-CQ01-CQ12.md).

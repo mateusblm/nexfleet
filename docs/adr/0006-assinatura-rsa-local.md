@@ -22,4 +22,4 @@ A chave pública é derivada da privada; seu thumbprint define o `kid`. O endpoi
 
 Validação distribuída nos serviços de domínio, rotação, armazenamento de produção (Azure Key Vault), autorização por perfis e revogação continuam pendentes. O endpoint JWKS por si só não torna os serviços consumidores: cada um ainda precisará verificar assinatura, emissor, audiência e validade. A URL de emissor atual é uma identificação local, não um servidor OIDC implementado.
 
-Referência: [Spring Security — JWT Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html).
+Referência: documentação do [Spring Security](https://docs.spring.io/spring-security/), seção OAuth 2.0 Resource Server — JWT.

@@ -5,7 +5,7 @@ Estado: aceita
 
 ## Contexto
 
-A homologação da v0.30.0 (ADR 0037) usava PostgreSQL Flexible Server privado, ACR, zona DNS privada e Container Apps com réplicas mínimas acima de zero em parte dos serviços. Com isso, o crédito Azure for Students (US$ 100) acabaria antes da apresentação final. A v1.0.0 precisava continuar publicada até a defesa, com o mesmo fluxo funcional.
+A homologação da v0.30.0 (ADR 0037) usava PostgreSQL Flexible Server privado, ACR, zona DNS privada e Container Apps com réplicas mínimas acima de zero em parte dos serviços. Com isso, o crédito Azure for Students (US$ 100) acabaria rapidamente. A v1.0.0 precisava continuar publicada, com o mesmo fluxo funcional.
 
 ## Decisão
 

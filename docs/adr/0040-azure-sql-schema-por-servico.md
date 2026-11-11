@@ -5,7 +5,7 @@ Estado: aceita
 
 ## Contexto
 
-O enunciado final exige um microsserviço com **Azure SQL**. Até a v0.30.0, Identidade, Operações, Indicadores e a Function de notificação usavam bancos PostgreSQL separados (local) e um PostgreSQL Flexible Server privado com cinco bancos (Azure), migrados por um job dentro da VNet (ADR 0037). Esse servidor era o maior custo fixo da homologação.
+Os requisitos da v1.0.0 pedem um microsserviço com **Azure SQL**. Até a v0.30.0, Identidade, Operações, Indicadores e a Function de notificação usavam bancos PostgreSQL separados (local) e um PostgreSQL Flexible Server privado com cinco bancos (Azure), migrados por um job dentro da VNet (ADR 0037). Esse servidor era o maior custo fixo da homologação.
 
 O Azure SQL Database tem uma oferta gratuita serverless, mas apenas **um banco gratuito por assinatura**. Manter um banco por serviço significaria pagar por três deles.
 
@@ -22,7 +22,7 @@ O Azure SQL Database tem uma oferta gratuita serverless, mas apenas **um banco g
 
 - O isolamento passou a ser por permissão, não por banco. A recusa foi verificada no SQL Server local: o usuário `operacoes` recebe `Msg 229` ao ler `identidade.usuario`, ao ler por uma view no próprio schema e ao ler `indicadores.flyway_schema_history`, e `Msg 2760` ao criar tabela em `identidade`.
 - A transação de abastecimento, hodômetro e outbox continua local a um schema (ADR 0013); dois publicadores concorrentes publicam cada evento uma vez.
-- Os bancos compartilham CPU e armazenamento do mesmo banco serverless. Um serviço muito ativo pode afetar os outros; para o volume acadêmico, o limite gratuito basta.
+- Os bancos compartilham CPU e armazenamento do mesmo banco serverless. Um serviço muito ativo pode afetar os outros; para o volume atual, o limite gratuito basta.
 - Quando o limite gratuito mensal se esgota, o banco **pausa** em vez de cobrar, e o sistema fica indisponível até o mês seguinte.
 - Depois do auto-pause, a primeira conexão leva cerca de 1 min; o `loginTimeout=60` cobre esse tempo (ver ADR 0044).
 - O endpoint do banco é público com TLS; o risco foi aceito pelo responsável na spec da v1.0.0. Conexões sem TLS são recusadas.

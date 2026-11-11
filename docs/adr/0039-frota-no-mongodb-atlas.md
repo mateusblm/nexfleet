@@ -5,7 +5,7 @@ Estado: aceita
 
 ## Contexto
 
-O enunciado final do PJBL exige um microsserviço com **MongoDB Atlas**. Até a v0.30.0, a Frota guardava veículos, motoristas e vínculos em PostgreSQL, com Flyway, chaves estrangeiras e um índice parcial para o vínculo ativo (ADRs 0009–0011). A Frota é o serviço cujos cadastros são documentos independentes e sem transação com outro agregado, o que a torna a candidata natural.
+Os requisitos da v1.0.0 pedem um microsserviço com **MongoDB Atlas**. Até a v0.30.0, a Frota guardava veículos, motoristas e vínculos em PostgreSQL, com Flyway, chaves estrangeiras e um índice parcial para o vínculo ativo (ADRs 0009–0011). A Frota é o serviço cujos cadastros são documentos independentes e sem transação com outro agregado, o que a torna a candidata natural.
 
 O contrato HTTP da Frota (rotas, payloads e status) precisava continuar igual ao da v0.30.0, porque o BFF, Operações e os microfrontends dependem dele.
 
@@ -44,4 +44,4 @@ O contrato HTTP da Frota (rotas, payloads e status) precisava continuar igual ao
 
 - **Spring Data repositories com `@Document`:** acoplariam o domínio às anotações do MongoDB ou exigiriam um segundo modelo; o `MongoTemplate` no adaptador mantém o domínio limpo.
 - **Colocar outro serviço no MongoDB:** Operações depende de transação entre abastecimento, hodômetro e outbox (ADR 0013); Identidade e Indicadores não ganhariam nada com documentos.
-- **Cosmos DB com API MongoDB:** o enunciado pede MongoDB Atlas e o M0 é gratuito.
+- **Cosmos DB com API MongoDB:** os requisitos pedem MongoDB Atlas e o M0 é gratuito.

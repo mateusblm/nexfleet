@@ -1,6 +1,6 @@
 # Histórico de entregas
 
-## v1.0.0 — 11/11/2026 (entrega final)
+## v1.0.0 — 11/11/2026
 
 - **Nove repositórios públicos** em `github.com/mateusblm`, criados por `git subtree split` do monorepo com o histórico preservado: guarda-chuva `nexfleet` e `nexfleet-{frontend,gateway,bff,identidade,frota,operacoes,indicadores,function}`. Cada um tem README, build próprio e CI; os de serviço publicam `mateusblm/nexfleet-<svc>` no Docker Hub em tag `v*` (ADR 0042).
 - **Frota no MongoDB** (Atlas M0 na nuvem, `mongo:7.0` local): coleções `veiculos`, `motoristas` e `vinculos`, índices únicos de placa, CPF, CNH e vínculo ativo por veículo; contrato HTTP inalterado; sem JDBC/Flyway (ADR 0039).
@@ -78,7 +78,7 @@
 - `Set-AzureBudget.ps1` reproduz o orçamento a partir do perfil local sem publicar workloads; o orçamento alerta, mas não desliga recursos.
 - `Brazil South` permanece como região de backend/dados e `East US 2` como região do Static Web Apps; Service Bus foi aprovado como mensageria de nuvem.
 - Backup PostgreSQL por sete dias foi aprovado. Azure Communication Services Email foi recomendado, mas seu provedor e recurso não foram registrados/criados sem nova autorização.
-- Guia de execução no macOS, ADR 0033, Aula 32 e relatório da entrega explicam decisões, execução e pendências.
+- Guia de execução no macOS, ADR 0033 e relatório da entrega explicam decisões, execução e pendências.
 - Nenhum grupo, banco, barramento, contêiner, Function, API Management ou outro workload pago foi implantado.
 
 ## 0.27.0 — 08/11/2026
@@ -101,7 +101,7 @@
 - Inventário cresce para 16 tipos; 15 estão no Bicep e Container Apps permanece pendente até a migração Service Bus.
 - Lint/build Bicep entram na suíte local e CI com versão/checksum fixos.
 - `Invoke-AzureWhatIf.ps1` executa somente preflight + `what-if`, reprova exclusões e remove parâmetros temporários.
-- ADR 0031, Aula 30, guia Bicep e entrega v0.26.0 registram limites e próximos passos.
+- ADR 0031, guia Bicep e entrega v0.26.0 registram limites e próximos passos.
 
 ## 0.25.0 — 08/11/2026
 
@@ -110,7 +110,7 @@
 - `Test-AzurePreflight.ps1` valida o modelo na CI e, quando configurado, consulta assinatura, regiões e provedores sem alterar a Azure.
 - Perfil incompleto reprova antes de procurar o Azure CLI; o exemplo não contém assinatura, orçamento ou autorização reais.
 - `Test-Project.ps1` e o workflow backend passam a validar a barreira de publicação.
-- ADR 0030, Aula 29, guia Azure e entrega v0.25.0 documentam instalação, decisões e limites.
+- ADR 0030, guia Azure e entrega v0.25.0 documentam instalação, decisões e limites.
 
 ## 0.24.0 — 08/11/2026
 
@@ -119,7 +119,7 @@
 - Relações por UUID entre serviços são descritas como referências lógicas sem FK cruzada.
 - A visão de Registrar Abastecimento passa a refletir JDBC e os pacotes reais `api/application/infrastructure`, sem declarar JPA ou `domain` inexistentes na fatia.
 - O módulo `quality` confronta os diagramas com todas as migrações e 17 classes centrais; 4 testes foram aprovados.
-- ADR 0029, Aula 28 e entrega v0.24.0 documentam a manutenção dos diagramas junto ao código.
+- ADR 0029 e entrega v0.24.0 documentam a manutenção dos diagramas junto ao código.
 
 ## 0.23.0 — 08/11/2026
 
@@ -128,7 +128,7 @@
 - A API técnica devolve `DOWN/503` e preserva o `X-Correlation-ID` observado no log.
 - Senha de banco e token Bearer sentinelas não aparecem nos logs capturados.
 - `Test-Cq07.ps1`, `Test-Project.ps1 -IncludeDatabaseIntegration` e o workflow backend automatizam a regressão.
-- ADR 0028, Aula 27, evidência CQ07 e entrega v0.23.0 documentam a estratégia e o resultado.
+- ADR 0028, evidência CQ07 e entrega v0.23.0 documentam a estratégia e o resultado.
 
 ## 0.22.0 — 08/11/2026
 
@@ -137,7 +137,7 @@
 - A resposta final preserva `realizadoEm`, `motoristaId` e `criadoEm`; o veículo permanece cadastrado com status `INATIVO`.
 - `Test-Cq05.ps1` orquestra quatro fases com identificadores compartilhados, portas e credenciais temporários.
 - `Test-Project.ps1 -IncludeDatabaseIntegration` e o workflow backend passam a executar CQ03, CQ04 e CQ05.
-- ADR 0027, Aula 26, evidência CQ05 e entrega v0.22.0 documentam a estratégia e o resultado.
+- ADR 0027, evidência CQ05 e entrega v0.22.0 documentam a estratégia e o resultado.
 
 ## 0.21.0 — 08/11/2026
 
@@ -146,7 +146,7 @@
 - `Test-Cq03Cq04.ps1` cria porta e credenciais aleatórias, aplica Flyway V1–V5 e remove o contêiner sem tocar nos bancos ativos.
 - `Test-Project.ps1 -IncludeDatabaseIntegration` inclui a nova prova na suíte geral.
 - Workflow backend passa a executar os dois testes integrados em toda mudança pertinente.
-- ADR 0026, Aula 25, evidência CQ03/CQ04 e entrega v0.21.0 documentam a estratégia e o resultado.
+- ADR 0026, evidência CQ03/CQ04 e entrega v0.21.0 documentam a estratégia e o resultado.
 
 ## 0.20.0 — 08/11/2026
 
@@ -156,7 +156,7 @@
 - A matriz CQ01–CQ12 distingue cenários aprovados, aprovados localmente com repetição pendente e provas integradas ainda abertas.
 - O módulo `quality` verifica que a matriz mantém exatamente CQ01–CQ12 em ordem.
 - Verificação local: 3 testes de qualidade, 172 testes dos serviços Java, 8 testes da Function, 47 testes frontend e quatro builds Vite aprovados.
-- ADR 0025, Aula 24, evidência CQ06 e entrega v0.20.0 documentam o comportamento e os limites.
+- ADR 0025, evidência CQ06 e entrega v0.20.0 documentam o comportamento e os limites.
 
 ## 0.19.0 — 08/11/2026
 
@@ -166,7 +166,7 @@
 - A pasta `backups/` foi excluída do Git; a documentação alerta que cópias preservadas contêm dados e exigem criptografia e acesso restrito.
 - `Test-E2E.ps1 -IncludeRecovery` e a CI efêmera passam a repetir a prova de recuperação.
 - Prova local integrada: cinco bancos restaurados sem divergências, RPO observado de 0,25 minuto e RTO conjunto de 0,72 minuto.
-- ADR 0024, Aula 23 e evidência CQ10 registram o procedimento e os limites para produção/Azure.
+- ADR 0024 e evidência CQ10 registram o procedimento e os limites para produção/Azure.
 
 ## 0.18.0 — 07/11/2026
 
@@ -175,7 +175,7 @@
 - `Test-Performance.ps1` utiliza a configuração local sem imprimir credenciais e restaura as variáveis temporárias ao terminar.
 - `Test-E2E.ps1 -IncludePerformance` inclui a prova na suíte integrada; a CI efêmera executa esse modo com Node.js 24.
 - Prova E2E local: 1.800 requisições, nenhuma falha, p95 geral de 974,59 ms e maior p95 individual de 1.004,27 ms.
-- ADR 0023, Aula 22 e evidência CQ09 registram método, resultado e necessidade de repetição na homologação Azure.
+- ADR 0023 e evidência CQ09 registram método, resultado e necessidade de repetição na homologação Azure.
 
 ## 0.17.0 — 07/11/2026
 
@@ -194,7 +194,7 @@
 - Logs uniformes nos seis serviços Java com `service`, `correlationId`, método, caminho, status e duração, sem corpo, query string, JWT, CPF, CNH ou senha.
 - Migração V5 acrescenta `correlation_id` obrigatório à outbox; eventos novos levam a correlação no payload JSON e no cabeçalho RabbitMQ.
 - Indicadores preserva a correlação ao consumir abastecimentos e manutenções; a Azure Function registra apenas metadados seguros e aceita eventos antigos usando `eventoId` como fallback.
-- ADR 0021, Aula 20 e documentação da entrega explicam a rastreabilidade ponta a ponta e como investigá-la localmente.
+- ADR 0021 e documentação da entrega explicam a rastreabilidade ponta a ponta e como investigá-la localmente.
 - Verificação local: 172 testes dos serviços Java, 8 testes da Function, 43 testes frontend e quatro builds Vite aprovados.
 - Prova integrada no Compose: o mesmo UUID foi observado em Gateway, BFF, Identidade, Frota, Operações e Indicadores; Flyway V5 aplicada no PostgreSQL real e todos os contêineres permaneceram saudáveis.
 
@@ -205,7 +205,6 @@
 - Prometheus LTS coleta os alvos a cada 15 segundos, mantém sete dias de dados locais e fica disponível somente em `127.0.0.1:9090`.
 - A subida local agora valida pela API do Prometheus que todos os seis alvos estão `UP`.
 - Instalador reprodutível baixa Node.js 24 e JDK 21 portáteis com checksum, instala os quatro conjuntos npm e prepara o cache Maven.
-- Estado das sprints, pendências de qualidade e roteiro de execução consolidados em `docs/STATUS-SPRINTS.md`.
 - Verificação local: 165 testes dos serviços Java, 6 testes da Function, 43 testes frontend e quatro builds Vite aprovados.
 - Limite desta máquina: Docker Desktop e WSL 2 não estão instalados; por isso a nova coleta Prometheus foi validada por build/configuração, mas ainda precisa da prova integrada em contêineres.
 
@@ -232,7 +231,7 @@
 ## 0.12.0 — 06/11/2026
 
 - RF12–13: registro e histórico paginado de manutenções, com filtro por veículo.
-- Tipos previstos no PJBL, data, quilometragem, descrição, oficina, valor e próxima manutenção.
+- Tipos previstos nos requisitos do produto, data, quilometragem, descrição, oficina, valor e próxima manutenção.
 - RB05/RB13: veículo inexistente ou inativo é recusado; próxima data deve ser posterior.
 - Registro e `ManutencaoRegistrada` v1 gravados juntos pela outbox transacional.
 - Rota, fila, consumidor idempotente, projeção PostgreSQL e DLQ exclusivos de manutenção.
@@ -256,8 +255,8 @@
 - Migração aditiva V4 com chaves locais, auditoria e índice único parcial por veículo ativo.
 - Interface integrada ao Gateway, BFF e serviço Frota, com histórico filtrável por veículo.
 - Horários de início/fim definidos pelo servidor; encerramento preserva a linha.
-- Contrato OpenAPI, ADR 0011, Aula 10 e testes de domínio/HTTP/encaminhamento/interface.
-- Não foi criada restrição inversa por motorista porque ela não consta no PJBL.
+- Contrato OpenAPI, ADR 0011 e testes de domínio/HTTP/encaminhamento/interface.
+- Não foi criada restrição inversa por motorista porque ela não consta nos requisitos do produto.
 
 ## 0.5.0 — 23/10/2026
 
@@ -266,7 +265,7 @@
 - Migração aditiva V3 no banco Frota, sem alterar ou remover veículos existentes.
 - JWT RSA validado no BFF e em Frota; dados acessíveis somente à equipe de Frota.
 - CPF e CNH mascarados na listagem e ausentes de logs da aplicação.
-- Contrato OpenAPI, testes de regra/HTTP/encaminhamento/interface, ADR 0010 e Aula 9.
+- Contrato OpenAPI, testes de regra/HTTP/encaminhamento/interface e ADR 0010.
 - Vínculos históricos continuam pendentes até fechar as decisões de RB06/RB07.
 
 ## 0.4.0 — 23/10/2026
@@ -278,7 +277,7 @@
 - Cadastro, consulta paginada, edição e desativação lógica, com DTOs sem credenciais.
 - Primeira fatia vertical de Frota: cadastro, consulta, edição, filtro e inativação de veículos.
 - Placa única, migração Flyway V2, auditoria por UUID e validação JWT no próprio serviço Frota.
-- Contrato OpenAPI, testes de regra/arquitetura/encaminhamento e Aula 8.
+- Contrato OpenAPI e testes de regra/arquitetura/encaminhamento.
 - Sem novo ZIP parcial; o histórico continua em uma única base integrada.
 
 ## 0.3.0 — 20/10/2026
@@ -287,7 +286,7 @@
 - Endpoint interno JWKS contém somente a chave pública; nenhum segredo compartilhado.
 - Gerador local recusa sobrescrita; override Compose monta a chave apenas em Identidade.
 - Modo HS256 anterior preservado, sem alteração de schema ou contrato de login.
-- Aula 5 e ADR 0006 explicam ativação, novo login obrigatório na troca e rollback.
+- ADR 0006 explica ativação, novo login obrigatório na troca e rollback.
 - Validação distribuída, permissões, cadastros e banco real continuam pendentes.
 
 ## 0.2.0 — 20/10/2026

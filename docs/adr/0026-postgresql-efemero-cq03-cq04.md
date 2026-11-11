@@ -37,4 +37,4 @@ O teste CQ04 injeta a falha por uma constraint exclusiva do banco efêmero. Não
 - A classe termina em `IT` e só roda quando o script a seleciona explicitamente.
 - O workflow backend repete a prova em cada mudança pertinente.
 
-Veja a [Evidência CQ03/CQ04](../EVIDENCIA-CQ03-CQ04-TRANSACAO.md), a [Aula 25](../tutorials/25-transacoes-postgresql-cq03-cq04.md) e a [matriz de qualidade](../MATRIZ-CQ01-CQ12.md).
+Veja a [Evidência CQ03/CQ04](../EVIDENCIA-CQ03-CQ04-TRANSACAO.md) e a [matriz de qualidade](../MATRIZ-CQ01-CQ12.md).

@@ -41,7 +41,7 @@ paths:
   /aggregated-data:
     get:
       operationId: consultarDadosAgregadosSemVersao
-      summary: Mesmo recurso de /api/v1/aggregated-data, no caminho literal do enunciado
+      summary: Mesmo recurso de /api/v1/aggregated-data, no caminho sem versão
       security:
         - bearerAuth: []
       responses:

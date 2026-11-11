@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O PJBL exige logs, métricas e correlação, além de Azure Monitor na publicação. Os serviços já possuíam Actuator e health checks, mas não havia coleta de séries temporais nem prova única de que todos os processos exportavam métricas.
+Os requisitos do produto pedem logs, métricas e correlação, além de Azure Monitor na publicação. Os serviços já possuíam Actuator e health checks, mas não havia coleta de séries temporais nem prova única de que todos os processos exportavam métricas.
 
 ## Decisão
 

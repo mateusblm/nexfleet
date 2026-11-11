@@ -2,7 +2,7 @@
 
 - Data: 18/10/2026.
 - Estado: aceita para a primeira parte da Sprint 0. Quanto aos bancos, **Substituída por ADR 0039 e ADR 0040** (na v1.0.0 não há instâncias PostgreSQL: Frota no MongoDB e os demais em um SQL Server com um schema por serviço).
-- Contexto: o PDF `ArqCloud_PJBL - Completo.pdf` substitui o monólito por quatro serviços, Gateway e BFF. O diretório `backend/` ainda contém o esqueleto anterior.
+- Contexto: os requisitos do produto substituem o monólito por quatro serviços, Gateway e BFF. O diretório `backend/` ainda contém o esqueleto anterior.
 - Decisão: novos projetos independentes em `services/`, agregador Maven apenas para conveniência de build e Compose próprio. Preservar o esqueleto anterior. Começar pela consulta técnica `GET /api/v1/ambiente`, com estado real dos bancos, antes dos casos de negócio.
 - Versões: manter Java 21, Spring Boot 4.1.1 e PostgreSQL 18 da ADR 0001. Spring Cloud 2025.1.2 é compatível com Boot 4.1.x; usar ArchUnit 1.4.1 para as regras iniciais.
 - Dados: quatro instâncias PostgreSQL locais simplificam a separação de redes e credenciais. Não reutilizar volumes do ambiente anterior. A topologia futura Azure continua com bases isoladas.

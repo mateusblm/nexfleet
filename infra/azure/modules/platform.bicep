@@ -119,7 +119,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
       name: 'PerGB2018'
     }
     workspaceCapping: {
-      // Limite de custo da entrega final: no máximo 0,15 GB/dia de ingestão.
+      // Limite de custo da v1.0.0: no máximo 0,15 GB/dia de ingestão.
       dailyQuotaGb: json('0.15')
     }
   }

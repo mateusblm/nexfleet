@@ -7,7 +7,7 @@ RF14 exige indicadores operacionais e financeiros. RB15 determina que os gastos 
 ## Decisão
 
 - Indicadores soma gastos e quantidades em suas projeções PostgreSQL, sem consultar os bancos de Operações ou Frota.
-- A primeira tela usa todo o histórico válido porque o PJBL não define um período obrigatório. Filtros de período permanecem uma evolução dependente de decisão de negócio.
+- A primeira tela usa todo o histórico válido porque os requisitos não definem um período obrigatório. Filtros de período permanecem uma evolução dependente de decisão de negócio.
 - A próxima manutenção considera a projeção mais recente de cada veículo quando ela possui data futura, limitada às cinco datas mais próximas.
 - Frota fornece a lista atual de veículos; apenas `DISPONIVEL` entra no cartão de disponíveis. `EM_MANUTENCAO` possui cartão próprio.
 - O BFF compõe os dois contratos HTTP e acrescenta a placa à próxima manutenção. Ele não executa SQL nem acessa bancos de outros serviços.

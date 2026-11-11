@@ -4,7 +4,7 @@ Estado: aceita. A captura local em PostgreSQL foi **Substituída por ADR 0040** 
 
 ## Contexto
 
-O PJBL exige uma função serverless que reaja ao registro de abastecimento, seja idempotente e tolere falhas. O comando de abastecimento já grava `AbastecimentoRegistrado.v1` na outbox e o publica no RabbitMQ depois do commit. O documento não informa destinatário, domínio remetente ou provedor de e-mail.
+Os requisitos do produto pedem uma função serverless que reaja ao registro de abastecimento, seja idempotente e tolere falhas. O comando de abastecimento já grava `AbastecimentoRegistrado.v1` na outbox e o publica no RabbitMQ depois do commit. Os requisitos não informam destinatário, domínio remetente ou provedor de e-mail.
 
 ## Decisão
 
@@ -28,4 +28,4 @@ O ambiente local comprova a solicitação, não a entrega em uma caixa postal. P
 - Enviar e-mail dentro de Operações: rejeitado porque acopla uma integração lenta ao comando principal.
 - Considerar cada mensagem como nova: rejeitado porque brokers trabalham com entrega pelo menos uma vez.
 - Executar Flyway no cold start: rejeitado após o teste demonstrar que a primeira invocação pode ficar ocupada com infraestrutura.
-- Inventar um destinatário local: rejeitado porque o PJBL não define essa regra.
+- Inventar um destinatário local: rejeitado porque os requisitos não definem essa regra.

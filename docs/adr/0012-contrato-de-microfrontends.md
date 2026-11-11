@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O PJBL exige um shell e três microfrontends React/TypeScript/Vite implantáveis separadamente. A interface anterior reunia autenticação, usuários e toda a Frota no mesmo build. Adotar um framework adicional de federação aumentaria dependências e configuração sem ser necessário para o escopo acadêmico atual.
+Os requisitos do produto pedem um shell e três microfrontends React/TypeScript/Vite implantáveis separadamente. A interface anterior reunia autenticação, usuários e toda a Frota no mesmo build. Adotar um framework adicional de federação aumentaria dependências e configuração sem ser necessário para o escopo atual.
 
 ## Decisão
 

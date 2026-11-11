@@ -13,7 +13,7 @@ Frota é dona de `frota.motorista`. A migração V3 adiciona a tabela sem altera
 
 Administrador e Gestor de Frota podem criar, consultar e editar motoristas conforme a matriz de permissões vigente. Não há rota de exclusão: RF07 não a solicita e o estado `INATIVO` é alterado por edição. A interface mascara CPF e CNH na listagem; o transporte continua protegido por autenticação e não registra esses valores em logs.
 
-Uma CNH vencida pode permanecer cadastrada, pois históricos precisam ser preservados. A validade será exigida quando um novo vínculo for criado por RF08/RB07. Não foi adicionada validação matemática de CPF ou CNH porque o PJBL exige presença e unicidade, não integração com fonte oficial.
+Uma CNH vencida pode permanecer cadastrada, pois históricos precisam ser preservados. A validade será exigida quando um novo vínculo for criado por RF08/RB07. Não foi adicionada validação matemática de CPF ou CNH porque os requisitos exigem presença e unicidade, não integração com fonte oficial.
 
 ## Consequências
 

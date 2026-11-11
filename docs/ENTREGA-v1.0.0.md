@@ -4,7 +4,7 @@ Data: 11/11/2026
 
 ## Resultado
 
-Entrega final do PJBL. O NexFleet passou a viver em nove repositórios públicos, com a Frota no MongoDB Atlas, os demais serviços em um Azure SQL com um schema por serviço, uma Azure Function HTTP de eficiência composta pelo BFF em `GET /aggregated-data`, Swagger e AsyncAPI públicos e imagens no Docker Hub. A homologação foi republicada na Azure sem PostgreSQL, ACR e DNS privado, com escala a zero, e passou no smoke público a frio.
+Versão 1.0.0. O NexFleet passou a viver em nove repositórios públicos, com a Frota no MongoDB Atlas, os demais serviços em um Azure SQL com um schema por serviço, uma Azure Function HTTP de eficiência composta pelo BFF em `GET /aggregated-data`, Swagger e AsyncAPI públicos e imagens no Docker Hub. A homologação foi republicada na Azure sem PostgreSQL, ACR e DNS privado, com escala a zero, e passou no smoke público a frio.
 
 ## URLs
 
@@ -70,7 +70,7 @@ Para compilar o código: `scripts/clonar-tudo.sh` e `docker compose -f compose.y
 2. **POST com 503 na partida a frio pode ter sido gravado:** confira a lista antes de repetir (ADR 0044).
 3. **`/aggregated-data` com tempo sequencial:** a Function só é chamada depois de Operações; o pior caso é a soma de dois tempos limite (ADR 0041).
 4. **Limite gratuito do Azure SQL:** ao esgotar o mês, o banco pausa até o mês seguinte.
-5. **BFF em Java**, e não em Node.js como o enunciado sugere "preferencialmente" (ADR 0043).
+5. **BFF em Java**, mantido na mesma pilha dos serviços; o Node.js foi considerado (ADR 0043).
 6. CQ09 e CQ10 não foram repetidos na nova infraestrutura; as provas são da v0.30.0.
 7. Os scripts PowerShell que dependiam do monorepo e do PostgreSQL ficaram como legado; os equivalentes da v1.0.0 são em bash.
 

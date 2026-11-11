@@ -333,5 +333,4 @@ ContainerAppConsoleLogs_CL
 | Segurança dos bancos locais | [GUIA-SEGURANCA-BANCO-LOCAL.md](GUIA-SEGURANCA-BANCO-LOCAL.md) |
 | Publicação na Azure (scripts e ordem) | [GUIA-INFRAESTRUTURA-AZURE-BICEP.md](GUIA-INFRAESTRUTURA-AZURE-BICEP.md), seção 7.1 |
 | Decisões de arquitetura | [docs/adr](adr) (ADR 0001 a 0037) |
-| Aulas passo a passo | [docs/tutorials](tutorials), em especial a 12 (outbox), a 13 (RabbitMQ), a 15 (DLQ), a 18 (Função) e a 19 (Prometheus) |
 | Provas de qualidade CQ01–CQ12 | [MATRIZ-CQ01-CQ12.md](MATRIZ-CQ01-CQ12.md) e arquivos `EVIDENCIA-*` |
