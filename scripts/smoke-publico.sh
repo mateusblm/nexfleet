@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke da publicação na Azure pelas URLs públicas: frontend (SWA), AsyncAPI, login, CRUD de
 # veículo, abastecimento, /aggregated-data com as três fontes, dashboard, Swagger via APIM e
-# CORS. Com o az logado, confere também a infraestrutura (sem PostgreSQL/ACR, SQL com TLS 1.2).
+# CORS, além de editar e excluir abastecimento e manutenção conferindo o dashboard. Com o az logado, confere também a infraestrutura (sem PostgreSQL/ACR, SQL com TLS 1.2).
 #
 #   NEXFLEET_API=https://<apim>.azure-api.net NEXFLEET_WEB=https://<swa> \
 #   NEXFLEET_EMAIL=... NEXFLEET_SENHA=... scripts/smoke-publico.sh [pasta-de-evidencias]
@@ -75,6 +75,21 @@ jq 'del(.accessToken, .refreshToken)' "$corpo_atual" >"$corpo_atual.tmp" 2>/dev/
 req aquecer-frota GET "$API/api/v1/veiculos?tamanho=1"; esperar "Frota responde" "$s" 200
 req aquecer-operacoes GET "$API/api/v1/manutencoes?tamanho=1"; esperar "Operações responde" "$s" 200
 req aquecer-indicadores GET "$API/api/v1/dashboard"; esperar "Indicadores responde" "$s" 200
+abast_antes=$(jq -r '.quantidadeAbastecimentos // 0' "$corpo_atual")
+man_antes=$(jq -r '.quantidadeManutencoes // 0' "$corpo_atual")
+
+# aguardar_dashboard CAMPO VALOR DESCRIÇÃO: o dashboard é atualizado por evento (outbox →
+# Service Bus → Indicadores), então espera até 2 min pelo valor.
+aguardar_dashboard() {
+  local campo="$1" esperado="$2" atual="" i
+  for i in $(seq 1 12); do
+    req "dashboard-$campo" GET "$API/api/v1/dashboard"
+    atual=$(jq -r ".$campo // empty" "$corpo_atual" 2>/dev/null)
+    [[ "$atual" == "$esperado" ]] && break
+    sleep 10
+  done
+  [[ "$atual" == "$esperado" ]]; conferir "$3" $? "$campo=$atual, esperado $esperado"
+}
 
 # --- CRUD de veículo (MongoDB Atlas) --------------------------------------------------------
 letras=ABCDEFGHJKLMNPRSTUVWXYZ
@@ -96,6 +111,33 @@ ultimo=$(jq -c '(if type == "array" then . else (.itens // .content) end) | max_
 novo=$(jq -c --arg r "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   '{veiculoId, motoristaId, combustivel, realizadoEm:$r, litros:40.5, valorTotal:243.0, quilometragem:(.quilometragem + 420)}' <<<"$ultimo")
 req abastecimento-registrar POST "$API/api/v1/abastecimentos" "$novo"; esperar "registrar abastecimento (NXF1A01)" "$s" 201
+abastecimento=$(jq -r '.id // empty' "$corpo_atual")
+aguardar_dashboard quantidadeAbastecimentos $((abast_antes + 1)) "dashboard conta o abastecimento novo"
+
+# --- Edição e exclusão no Operações (CRUD completo, eventos versionados) ----------------------
+req abastecimento-ler GET "$API/api/v1/abastecimentos/$abastecimento"; esperar "ler abastecimento por id" "$s" 200
+req abastecimento-editar PUT "$API/api/v1/abastecimentos/$abastecimento" \
+  "$(jq -c '{combustivel, litros:42.0, valorTotal:300.0, quilometragem}' <<<"$novo")"
+esperar "editar abastecimento" "$s" 200
+jq -e '.versao == 2 and (.valorTotal | tonumber) == 300' "$corpo_atual" >/dev/null 2>&1
+conferir "edição grava o valor novo e a versão 2" $? "$(jq -c '{versao, valorTotal}' "$corpo_atual" 2>/dev/null)"
+req abastecimento-km-invalido PUT "$API/api/v1/abastecimentos/$abastecimento" \
+  "$(jq -c '{combustivel, litros, valorTotal, quilometragem:1}' <<<"$novo")"
+esperar "km fora da faixa é recusado" "$s" 422
+req abastecimento-excluir DELETE "$API/api/v1/abastecimentos/$abastecimento"; esperar "excluir abastecimento" "$s" 204
+req abastecimento-excluido GET "$API/api/v1/abastecimentos/$abastecimento"; esperar "abastecimento excluído some" "$s" 404
+aguardar_dashboard quantidadeAbastecimentos "$abast_antes" "dashboard tira o abastecimento excluído"
+
+manutencao=$(jq -nc --arg v "$alvo" --arg d "$(date -u +%Y-%m-%d)" \
+  '{veiculoId:$v,tipo:"REVISAO",realizadaEm:$d,quilometragem:1000,descricao:"Revisão de smoke",oficina:"Oficina Smoke",valor:150.0,proximaManutencao:null}')
+req manutencao-registrar POST "$API/api/v1/manutencoes" "$manutencao"; esperar "registrar manutenção" "$s" 201
+man_id=$(jq -r '.id // empty' "$corpo_atual")
+req manutencao-ler GET "$API/api/v1/manutencoes/$man_id"; esperar "ler manutenção por id" "$s" 200
+req manutencao-editar PUT "$API/api/v1/manutencoes/$man_id" \
+  "$(jq -c 'del(.veiculoId) | .valor=180.0 | .descricao="Revisão de smoke (corrigida)"' <<<"$manutencao")"
+esperar "editar manutenção" "$s" 200
+req manutencao-excluir DELETE "$API/api/v1/manutencoes/$man_id"; esperar "excluir manutenção" "$s" 204
+aguardar_dashboard quantidadeManutencoes "$man_antes" "dashboard volta ao total de manutenções"
 
 # --- /aggregated-data: Frota (Mongo) + Operações (SQL) + Function ---------------------------
 req aggregated-data GET "$API/aggregated-data"; esperar "GET /aggregated-data" "$s" 200
