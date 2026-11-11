@@ -272,6 +272,11 @@ module gateway './container-app.bicep' = {
     }
     environmentVariables: concat(commonSpring, [
       { name: 'BFF_URL', value: 'https://${bff.outputs.fqdn}' }
+      // Rotas /docs/<svc>/v3/api-docs da Swagger UI única do Gateway.
+      { name: 'IDENTIDADE_URL', value: 'https://${identidade.outputs.fqdn}' }
+      { name: 'FROTA_URL', value: 'https://${frota.outputs.fqdn}' }
+      { name: 'OPERACOES_URL', value: 'https://${operacoes.outputs.fqdn}' }
+      { name: 'INDICADORES_URL', value: 'https://${indicadores.outputs.fqdn}' }
       { name: 'AZURE_CLIENT_ID', value: identities.gateway.clientId }
     ])
   }
