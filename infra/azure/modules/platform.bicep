@@ -266,7 +266,7 @@ resource indicadoresRule 'Microsoft.ServiceBus/namespaces/topics/subscriptions/r
     sqlFilter: {
       compatibilityLevel: 20
       requiresPreprocessing: false
-      sqlExpression: 'eventType IN (\'AbastecimentoRegistrado.v1\', \'ManutencaoRegistrada.v1\')'
+      sqlExpression: 'eventType IN (\'AbastecimentoRegistrado.v1\', \'ManutencaoRegistrada.v1\', \'AbastecimentoAtualizado.v1\', \'AbastecimentoExcluido.v1\', \'ManutencaoAtualizada.v1\', \'ManutencaoExcluida.v1\')'
     }
   }
 }
